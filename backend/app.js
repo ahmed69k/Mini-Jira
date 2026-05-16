@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const {DynamoDBCLient, DynamoDBClient} = require("@aws-sdk/client-dynamodb");
 const {DynamoDBDocumentClient, PutCommand, GetCommand, DeleteCommand} = require("@aws-sdk/lib-dynamodb");
