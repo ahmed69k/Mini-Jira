@@ -2,7 +2,7 @@ const { v4: uuidv4 } = require("uuid");
 const { dynamoDb } = require("../config/dynamodb");
 const { PutCommand, ScanCommand, GetCommand, UpdateCommand, DeleteCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 
-const TASKS_TABLE = "Tasks";
+const TASKS_TABLE = "tasks";
 
 // POST /api/tasks - Create new task (manager only)
 exports.createTask = async (req, res) => {
