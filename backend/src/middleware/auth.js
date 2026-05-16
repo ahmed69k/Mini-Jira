@@ -25,11 +25,16 @@ module.exports = async (req, res, next) => {
     // Extract user info from Cognito token claims
     req.user = {
       userId: payload.sub, // Cognito's user ID
-      username: payload.username,
-      role: payload["custom:role"] || "employee", // Custom attribute
-      teamId: payload["custom:teamId"], // Custom attribute
+      username: payload["cognito:username"] || payload.username,
+      role: payload["custom:role"] || null, // Custom attribute
+      teamId: payload["custom:teamId"] || null, // Custom attribute
       email: payload.email,
     };
+
+    // Validate that user has a role assigned
+    if (!req.user.role) {
+      return res.status(403).json({ error: "No role assigned to user" });
+    }
 
     next();
   } catch (error) {
