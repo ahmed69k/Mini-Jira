@@ -11,13 +11,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Health check endpoint (no auth required)
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK", message: "Server is running" });
+});
+
 // Register routes
 app.use('', authRoutes)
 app.use("/api/tasks", tasksRoutes);
 app.use("/api/projects", projectsRoutes);
 app.use("/api/comments", commentsRoutes);
 
-const port = 4000;
+const port = process.env.PORT || 4000;
 app.listen(port,()=>{
     console.log(`Server running on ${port}`)
 })
