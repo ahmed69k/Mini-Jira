@@ -1,44 +1,33 @@
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
 
-// Create Cognito JWT verifier for ID tokens
 const verifier = CognitoJwtVerifier.create({
-  userPoolId: process.env.COGNITO_USER_POOL_ID,
-  tokenUse: "id", // Using ID tokens (contains custom attributes)
-  clientId: process.env.COGNITO_CLIENT_ID,
+    userPoolId: process.env.COGNITO_USER_POOL_ID,
+    tokenUse: "access",
+    clientId: process.env.COGNITO_CLIENT_ID
 });
 
-// Auth middleware
-module.exports = async (req, res, next) => {
-  try {
-    // Extract token from Authorization header
-    const authHeader = req.headers.authorization;
+async function authMiddleware(req, res, next) {
+    try {
+        const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "No token provided" });
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const token = authHeader.split(" ")[1];
+
+        const payload = await verifier.verify(token);
+
+        req.user = payload;
+        next();
+
+    } catch (e) {
+        // Cognito token errors should be treated as 401
+        return res.status(401).json({
+            message: "Invalid or expired token",
+            error: e.message
+        });
     }
+}
 
-    const token = authHeader.split(" ")[1];
-
-    // Verify token using aws-jwt-verify
-    const payload = await verifier.verify(token);
-
-    // Extract user info from Cognito token claims
-    req.user = {
-      userId: payload.sub, // Cognito's user ID
-      username: payload["cognito:username"] || payload.username,
-      role: payload["custom:role"] || null, // Custom attribute
-      teamId: payload["custom:teamId"] || null, // Custom attribute
-      email: payload.email,
-    };
-
-    // Validate that user has a role assigned
-    if (!req.user.role) {
-      return res.status(403).json({ error: "No role assigned to user" });
-    }
-
-    next();
-  } catch (error) {
-    console.error("Token verification failed:", error.message);
-    return res.status(401).json({ error: "Invalid or expired token" });
-  }
-};
+module.exports = authMiddleware;

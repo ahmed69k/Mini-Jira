@@ -1,14 +1,14 @@
 require("dotenv").config();
-
 const express = require("express");
-const {DynamoDBCLient, DynamoDBClient} = require("@aws-sdk/client-dynamodb");
-const {DynamoDBDocumentClient, PutCommand, GetCommand, DeleteCommand} = require("@aws-sdk/lib-dynamodb");
-const client = new DynamoDBClient({region: "eu-north-1"});
-const dynamo = DynamoDBDocumentClient.from(client);
+const cors = require("cors")
 
 const tasksRoutes = require("./src/routes/tasks");
+const authRoutes = require("./src/routes/auth")
+const projectsRoutes = require("./src/routes/projects");
+const commentsRoutes = require("./src/routes/comments");
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 // Health check endpoint (no auth required)
@@ -17,7 +17,10 @@ app.get("/health", (req, res) => {
 });
 
 // Register routes
+app.use('', authRoutes)
 app.use("/api/tasks", tasksRoutes);
+app.use("/api/projects", projectsRoutes);
+app.use("/api/comments", commentsRoutes);
 
 const port = process.env.PORT || 4000;
 app.listen(port,()=>{
