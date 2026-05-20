@@ -19,6 +19,10 @@ router.post("/", createTask);
 // GET /api/tasks - Get all tasks (filtered by role)
 router.get("/", getTasks);
 
+// PUT /api/tasks/:id/status - Update task status (employee and manager)
+// IMPORTANT: This must come BEFORE /:id route
+router.put("/:id/status", updateStatus);
+
 // GET /api/tasks/:id - Get task by ID
 router.get("/:id", getTaskById);
 
@@ -27,8 +31,5 @@ router.put("/:id", updateTask);
 
 // DELETE /api/tasks/:id - Delete task (manager only)
 router.delete("/:id", deleteTask);
-
-// PUT /api/tasks/:id/status - Update task status (employee and manager)
-router.put("/:id/status", updateStatus);
 
 module.exports = router;
