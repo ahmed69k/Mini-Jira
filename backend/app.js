@@ -26,7 +26,7 @@ app.use("/api/projects", projectsRoutes);
 app.use("/api/comments", commentsRoutes);
 app.use("/api/uploads", uploadsRoutes);
 
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 3000;
 app.listen(port,()=>{
     console.log(`Server running on ${port}`)
 })

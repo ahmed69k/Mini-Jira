@@ -1,6 +1,8 @@
 const { v4: uuidv4 } = require("uuid");
 const dynamodb = require("../config/dynamodb");
 const { PutCommand, ScanCommand, GetCommand, UpdateCommand, DeleteCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
+const { SNSClient, PublishCommand } = require("@aws-sdk/client-sns");
+const sns = require("../config/sns");
 
 const TASKS_TABLE = "tasks";
 
@@ -50,6 +52,30 @@ exports.createTask = async (req, res) => {
     });
 
     await dynamodb.send(command);
+
+    // Send SNS notification to assigned employee
+    try {
+      const messageBody = `You have been assigned a new task.
+
+Task Details:
+- Title:       ${task.title}
+- Priority:    ${task.priority}
+- Deadline:    ${task.deadline}
+- Team:        ${task.teamId}
+- Description: ${task.description}
+- Assigned by: ${req.user.name} (manager)`;
+
+      const snsCommand = new PublishCommand({
+        TopicArn: process.env.SNS_TOPIC_ARN,
+        Subject: `New Task Assigned: ${task.title}`,
+        Message: messageBody
+      });
+
+      await sns.send(snsCommand);
+    } catch (snsError) {
+      console.error("Error sending SNS notification:", snsError);
+      // Don't fail task creation if SNS fails
+    }
 
     return res.status(201).json(task);
   } catch (error) {
@@ -165,6 +191,9 @@ exports.updateTask = async (req, res) => {
       return res.status(404).json({ error: "Task not found" });
     }
 
+    const oldTask = getResult.Item;
+    const isReassigned = assigneeId !== undefined && assigneeId !== oldTask.assigneeId;
+
     // Validate priority if provided
     if (priority && !["LOW", "MEDIUM", "HIGH"].includes(priority)) {
       return res.status(400).json({ error: "Invalid priority. Must be LOW, MEDIUM, or HIGH" });
@@ -233,6 +262,32 @@ exports.updateTask = async (req, res) => {
     });
 
     const updateResult = await dynamodb.send(updateCommand);
+
+    // Send SNS notification if task was reassigned
+    if (isReassigned) {
+      try {
+        const messageBody = `A task has been reassigned to you.
+
+Task Details:
+- Title:       ${updateResult.Attributes.title}
+- Priority:    ${updateResult.Attributes.priority}
+- Deadline:    ${updateResult.Attributes.deadline}
+- Team:        ${updateResult.Attributes.teamId}
+- Description: ${updateResult.Attributes.description}
+- Reassigned by: ${req.user.name} (manager)`;
+
+        const snsCommand = new PublishCommand({
+          TopicArn: process.env.SNS_TOPIC_ARN,
+          Subject: `Task Reassigned: ${updateResult.Attributes.title}`,
+          Message: messageBody
+        });
+
+        await sns.send(snsCommand);
+      } catch (snsError) {
+        console.error("Error sending SNS notification:", snsError);
+        // Don't fail task update if SNS fails
+      }
+    }
 
     return res.status(200).json(updateResult.Attributes);
   } catch (error) {
