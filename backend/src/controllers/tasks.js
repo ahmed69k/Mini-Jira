@@ -1,14 +1,17 @@
 const { v4: uuidv4 } = require("uuid");
-const { dynamoDb } = require("../config/dynamodb");
+const dynamodb = require("../config/dynamodb");
 const { PutCommand, ScanCommand, GetCommand, UpdateCommand, DeleteCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
+const { SNSClient, PublishCommand } = require("@aws-sdk/client-sns");
+const sns = require("../config/sns");
 
-const TASKS_TABLE = "Tasks";
+const TASKS_TABLE = "tasks";
 
 // POST /api/tasks - Create new task (manager only)
 exports.createTask = async (req, res) => {
   try {
     // Check if user is manager
-    if (req.user.role !== "manager") {
+    const userRole = req.user["custom:role"];
+    if (userRole !== "manager") {
       return res.status(403).json({ error: "Only managers can create tasks" });
     }
 
@@ -38,7 +41,7 @@ exports.createTask = async (req, res) => {
       teamId,
       projectId,
       ...(imageUrl && { imageUrl }),
-      createdBy: req.user.userId,
+      createdBy: req.user.sub,
       createdAt: now,
       updatedAt: now,
     };
@@ -48,7 +51,31 @@ exports.createTask = async (req, res) => {
       Item: task,
     });
 
-    await dynamoDb.send(command);
+    await dynamodb.send(command);
+
+    // Send SNS notification to assigned employee
+    try {
+      const messageBody = `You have been assigned a new task.
+
+Task Details:
+- Title:       ${task.title}
+- Priority:    ${task.priority}
+- Deadline:    ${task.deadline}
+- Team:        ${task.teamId}
+- Description: ${task.description}
+- Assigned by: ${req.user.name} (manager)`;
+
+      const snsCommand = new PublishCommand({
+        TopicArn: process.env.SNS_TOPIC_ARN,
+        Subject: `New Task Assigned: ${task.title}`,
+        Message: messageBody
+      });
+
+      await sns.send(snsCommand);
+    } catch (snsError) {
+      console.error("Error sending SNS notification:", snsError);
+      // Don't fail task creation if SNS fails
+    }
 
     return res.status(201).json(task);
   } catch (error) {
@@ -61,19 +88,21 @@ exports.createTask = async (req, res) => {
 exports.getTasks = async (req, res) => {
   try {
     const { teamId } = req.query;
+    const userRole = req.user["custom:role"];
+    const userTeamId = req.user["custom:teamId"];
 
     // If user is employee, only return tasks from their team
-    if (req.user.role === "employee") {
+    if (userRole === "employee") {
       const command = new QueryCommand({
         TableName: TASKS_TABLE,
         IndexName: "teamId-index",
         KeyConditionExpression: "teamId = :teamId",
         ExpressionAttributeValues: {
-          ":teamId": req.user.teamId,
+          ":teamId": userTeamId,
         },
       });
 
-      const result = await dynamoDb.send(command);
+      const result = await dynamodb.send(command);
       return res.status(200).json(result.Items || []);
     }
 
@@ -89,7 +118,7 @@ exports.getTasks = async (req, res) => {
         },
       });
 
-      const result = await dynamoDb.send(command);
+      const result = await dynamodb.send(command);
       return res.status(200).json(result.Items || []);
     } else {
       // Scan entire table
@@ -97,7 +126,7 @@ exports.getTasks = async (req, res) => {
         TableName: TASKS_TABLE,
       });
 
-      const result = await dynamoDb.send(command);
+      const result = await dynamodb.send(command);
       return res.status(200).json(result.Items || []);
     }
   } catch (error) {
@@ -116,7 +145,7 @@ exports.getTaskById = async (req, res) => {
       Key: { taskId: id },
     });
 
-    const result = await dynamoDb.send(command);
+    const result = await dynamodb.send(command);
 
     if (!result.Item) {
       return res.status(404).json({ error: "Task not found" });
@@ -125,7 +154,9 @@ exports.getTaskById = async (req, res) => {
     const task = result.Item;
 
     // If employee, check if task belongs to their team
-    if (req.user.role === "employee" && task.teamId !== req.user.teamId) {
+    const userRole = req.user["custom:role"];
+    const userTeamId = req.user["custom:teamId"];
+    if (userRole === "employee" && task.teamId !== userTeamId) {
       return res.status(403).json({ error: "Forbidden: Task does not belong to your team" });
     }
 
@@ -140,7 +171,8 @@ exports.getTaskById = async (req, res) => {
 exports.updateTask = async (req, res) => {
   try {
     // Check if user is manager
-    if (req.user.role !== "manager") {
+    const userRole = req.user["custom:role"];
+    if (userRole !== "manager") {
       return res.status(403).json({ error: "Only managers can update tasks" });
     }
 
@@ -153,11 +185,14 @@ exports.updateTask = async (req, res) => {
       Key: { taskId: id },
     });
 
-    const getResult = await dynamoDb.send(getCommand);
+    const getResult = await dynamodb.send(getCommand);
 
     if (!getResult.Item) {
       return res.status(404).json({ error: "Task not found" });
     }
+
+    const oldTask = getResult.Item;
+    const isReassigned = assigneeId !== undefined && assigneeId !== oldTask.assigneeId;
 
     // Validate priority if provided
     if (priority && !["LOW", "MEDIUM", "HIGH"].includes(priority)) {
@@ -226,7 +261,33 @@ exports.updateTask = async (req, res) => {
       ReturnValues: "ALL_NEW",
     });
 
-    const updateResult = await dynamoDb.send(updateCommand);
+    const updateResult = await dynamodb.send(updateCommand);
+
+    // Send SNS notification if task was reassigned
+    if (isReassigned) {
+      try {
+        const messageBody = `A task has been reassigned to you.
+
+Task Details:
+- Title:       ${updateResult.Attributes.title}
+- Priority:    ${updateResult.Attributes.priority}
+- Deadline:    ${updateResult.Attributes.deadline}
+- Team:        ${updateResult.Attributes.teamId}
+- Description: ${updateResult.Attributes.description}
+- Reassigned by: ${req.user.name} (manager)`;
+
+        const snsCommand = new PublishCommand({
+          TopicArn: process.env.SNS_TOPIC_ARN,
+          Subject: `Task Reassigned: ${updateResult.Attributes.title}`,
+          Message: messageBody
+        });
+
+        await sns.send(snsCommand);
+      } catch (snsError) {
+        console.error("Error sending SNS notification:", snsError);
+        // Don't fail task update if SNS fails
+      }
+    }
 
     return res.status(200).json(updateResult.Attributes);
   } catch (error) {
@@ -239,7 +300,8 @@ exports.updateTask = async (req, res) => {
 exports.deleteTask = async (req, res) => {
   try {
     // Check if user is manager
-    if (req.user.role !== "manager") {
+    const userRole = req.user["custom:role"];
+    if (userRole !== "manager") {
       return res.status(403).json({ error: "Only managers can delete tasks" });
     }
 
@@ -251,7 +313,7 @@ exports.deleteTask = async (req, res) => {
       Key: { taskId: id },
     });
 
-    const getResult = await dynamoDb.send(getCommand);
+    const getResult = await dynamodb.send(getCommand);
 
     if (!getResult.Item) {
       return res.status(404).json({ error: "Task not found" });
@@ -262,7 +324,7 @@ exports.deleteTask = async (req, res) => {
       Key: { taskId: id },
     });
 
-    await dynamoDb.send(deleteCommand);
+    await dynamodb.send(deleteCommand);
 
     return res.status(200).json({ message: "Task deleted successfully" });
   } catch (error) {
@@ -288,7 +350,7 @@ exports.updateStatus = async (req, res) => {
       Key: { taskId: id },
     });
 
-    const getResult = await dynamoDb.send(getCommand);
+    const getResult = await dynamodb.send(getCommand);
 
     if (!getResult.Item) {
       return res.status(404).json({ error: "Task not found" });
@@ -297,7 +359,9 @@ exports.updateStatus = async (req, res) => {
     const task = getResult.Item;
 
     // If employee, check if task belongs to their team
-    if (req.user.role === "employee" && task.teamId !== req.user.teamId) {
+    const userRole = req.user["custom:role"];
+    const userTeamId = req.user["custom:teamId"];
+    if (userRole === "employee" && task.teamId !== userTeamId) {
       return res.status(403).json({ error: "Forbidden: You can only update tasks in your team" });
     }
 
@@ -306,7 +370,7 @@ exports.updateStatus = async (req, res) => {
 
     // Create audit log entry
     const auditLog = {
-      changedBy: req.user.userId,
+      changedBy: req.user.sub,
       changedAt: now,
       oldStatus,
       newStatus: status,
@@ -333,7 +397,7 @@ exports.updateStatus = async (req, res) => {
       ReturnValues: "ALL_NEW",
     });
 
-    const updateResult = await dynamoDb.send(updateCommand);
+    const updateResult = await dynamodb.send(updateCommand);
 
     return res.status(200).json(updateResult.Attributes);
   } catch (error) {

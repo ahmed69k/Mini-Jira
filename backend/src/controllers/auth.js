@@ -52,7 +52,7 @@ const AuthController = {
         catch(e){
             console.log(e)
             if(e.name === "UsernameExistsException"){
-                return res.status(409).json({message: "User already exists."});
+                return res.status(409).json({message: "User already exists.", error: e.message});
             }
             return res.status(500).json({message: e.message})
         }
@@ -107,12 +107,14 @@ const AuthController = {
             if (e.name === "NotAuthorizedException") {
                 return res.status(401).json({
                 message: "Invalid credentials",
+                error: e.message
                 });
       }
 
             if (e.name === "UserNotConfirmedException") {
                 return res.status(403).json({
                 message: "User not confirmed. Please verify your email.",
+                error: e.message
                 });
             }
             return res.status(500).json({message: e.message})
