@@ -1,5 +1,7 @@
 const dynamodb = require('../config/dynamodb');
-const {GetCommand, PutCommand, UpdateCommand} = require("@aws-sdk/lib-dynamodb")
+const cognito = require("../config/cognito");
+const {GetCommand, PutCommand, UpdateCommand, DeleteCommand} = require("@aws-sdk/lib-dynamodb");
+const { AdminDeleteUserCommand } = require('@aws-sdk/client-cognito-identity-provider');
 const table_name = "users";
 
 const UserController = {
@@ -72,6 +74,31 @@ const UserController = {
             return res.status(500).json({
                 message: e.message
             });
+        }
+    },
+    deleteUserProfile: async(req, res)=>{
+        try{
+            const userId = req.user.sub;
+            
+            await dynamodb.send(
+                new DeleteCommand({
+                    TableName: table_name,
+                    Key:{
+                        userId
+                    }
+                })
+            )
+            await cognito.send(
+                new AdminDeleteUserCommand({
+                    UserPoolId: process.env.COGNITO_USER_POOL_ID,
+                    Username: req.user.username || req.user.email
+                })
+            )
+            return res.status(200).json({message: "User deleted successfully."})
+        }
+        catch(e){
+            console.log(e);
+            return res.status(500).json({message: e.message})
         }
     }
 }
