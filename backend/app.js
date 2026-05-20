@@ -6,6 +6,7 @@ const tasksRoutes = require("./src/routes/tasks");
 const authRoutes = require("./src/routes/auth")
 const projectsRoutes = require("./src/routes/projects");
 const commentsRoutes = require("./src/routes/comments");
+const userRoutes = require('./src/routes/user')
 
 const app = express();
 app.use(cors());
@@ -18,6 +19,7 @@ app.get("/health", (req, res) => {
 
 // Register routes
 app.use('', authRoutes)
+app.use('',userRoutes)
 app.use("/api/tasks", tasksRoutes);
 app.use("/api/projects", projectsRoutes);
 app.use("/api/comments", commentsRoutes);
