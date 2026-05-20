@@ -2,8 +2,8 @@ const { v4: uuidv4 } = require("uuid");
 const dynamodb = require("../config/dynamodb");
 const { PutCommand, QueryCommand, GetCommand } = require("@aws-sdk/lib-dynamodb");
 
-const COMMENTS_TABLE = "Comments";
-const TASKS_TABLE = "Tasks";
+const COMMENTS_TABLE = "comments";
+const TASKS_TABLE = "tasks";
 
 // POST /api/comments - Create new comment (employees and managers)
 exports.createComment = async (req, res) => {
