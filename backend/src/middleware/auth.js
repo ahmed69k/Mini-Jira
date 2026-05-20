@@ -2,7 +2,7 @@ const { CognitoJwtVerifier } = require("aws-jwt-verify");
 
 const verifier = CognitoJwtVerifier.create({
     userPoolId: process.env.COGNITO_USER_POOL_ID,
-    tokenUse: "access",
+    tokenUse: "id",
     clientId: process.env.COGNITO_CLIENT_ID
 });
 
@@ -15,10 +15,9 @@ async function authMiddleware(req, res, next) {
         }
 
         const token = authHeader.split(" ")[1];
-
         const payload = await verifier.verify(token);
-
         req.user = payload;
+        
         next();
 
     } catch (e) {
