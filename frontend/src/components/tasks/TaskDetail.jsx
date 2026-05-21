@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import api from '../../services/api';
+import ImageUpload from '../uploads/ImageUpload';
 import './TaskDetail.css';
 
 const TaskDetail = ({ task, onUpdate, onClose }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState(task.imageUrl);
+  const [currentImageKey, setCurrentImageKey] = useState(task.imageKey);
 
   const getPriorityColor = (priority) => {
     switch (priority) {
@@ -66,6 +69,24 @@ const TaskDetail = ({ task, onUpdate, onClose }) => {
 
   const userRole = JSON.parse(localStorage.getItem('user') || '{}').role;
   const isManager = userRole === 'manager';
+
+  const handleImageUpdate = (newImageUrl, newImageKey) => {
+    setCurrentImageUrl(newImageUrl);
+    setCurrentImageKey(newImageKey);
+    // Refresh task data
+    if (onUpdate) {
+      onUpdate();
+    }
+  };
+
+  const handleImageDelete = () => {
+    setCurrentImageUrl(null);
+    setCurrentImageKey(null);
+    // Refresh task data
+    if (onUpdate) {
+      onUpdate();
+    }
+  };
 
   return (
     <div className="task-detail">
@@ -131,22 +152,9 @@ const TaskDetail = ({ task, onUpdate, onClose }) => {
 
           <div className="detail-item">
             <label className="detail-label">Assignee</label>
-            <div className="detail-value">{task.assigneeId}</div>
+            <div className="detail-value">{task.assigneeName || task.assigneeId}</div>
           </div>
         </div>
-
-        {task.imageUrl && (
-          <section className="detail-section">
-            <h3 className="section-title">Attachment</h3>
-            <div className="task-image-container">
-              <img
-                src={task.imageUrl}
-                alt="Task attachment"
-                className="task-image"
-              />
-            </div>
-          </section>
-        )}
 
         {task.auditLogs && task.auditLogs.length > 0 && (
           <section className="detail-section">
@@ -185,6 +193,15 @@ const TaskDetail = ({ task, onUpdate, onClose }) => {
           <span>Created: {formatDate(task.createdAt)}</span>
           <span>Updated: {formatDate(task.updatedAt)}</span>
         </div>
+
+        {/* Image Upload Component */}
+        <ImageUpload
+          taskId={task.taskId}
+          imageUrl={currentImageUrl}
+          imageKey={currentImageKey}
+          onImageUpdate={handleImageUpdate}
+          onImageDelete={handleImageDelete}
+        />
       </div>
 
       {isManager && (

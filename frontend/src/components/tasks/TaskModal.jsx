@@ -17,6 +17,15 @@ const TaskModal = ({ task, onClose, onUpdate }) => {
     }
   };
 
+  // Debug: Log task data
+  console.log('TaskModal - task data:', task);
+
+  // Safety check
+  if (!task) {
+    console.error('TaskModal: No task data provided');
+    return null;
+  }
+
   return (
     <div className="modal-backdrop" onClick={handleBackdropClick}>
       <div className="modal-content">

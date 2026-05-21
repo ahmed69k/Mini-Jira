@@ -28,6 +28,35 @@ exports.getPresignedUrl = async (req, res) => {
       return res.status(400).json({ error: "Only image files are allowed" });
     }
 
+    // Authorization: Check if user can upload to this task
+    const userRole = req.user["custom:role"];
+    const userId = req.user.sub;
+
+    // If employee, verify task is assigned to them
+    if (userRole === "employee") {
+      const { GetCommand } = require("@aws-sdk/lib-dynamodb");
+
+      // Get task to check assigneeId
+      const getTaskCommand = new GetCommand({
+        TableName: TASKS_TABLE,
+        Key: { taskId },
+      });
+
+      const taskResult = await dynamodb.send(getTaskCommand);
+
+      if (!taskResult.Item) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      const task = taskResult.Item;
+
+      // Check if task is assigned to this user
+      if (task.assigneeId !== userId) {
+        return res.status(403).json({ error: "Forbidden: You can only upload images to tasks assigned to you" });
+      }
+    }
+    // Managers can upload to any task
+
     // Generate S3 key: tasks/{taskId}/{filename}
     const key = `tasks/${taskId}/${filename}`;
 
@@ -64,6 +93,43 @@ exports.deleteImage = async (req, res) => {
       return res.status(400).json({ error: "Missing key in request body" });
     }
 
+    // Extract taskId from key (format: tasks/{taskId}/{filename})
+    const keyParts = key.split('/');
+    if (keyParts.length < 3 || keyParts[0] !== 'tasks') {
+      return res.status(400).json({ error: "Invalid key format" });
+    }
+
+    const taskId = keyParts[1];
+
+    // Authorization: Check if user can delete this image
+    const userRole = req.user["custom:role"];
+
+    // If employee, verify task belongs to their team
+    if (userRole === "employee") {
+      const { GetCommand } = require("@aws-sdk/lib-dynamodb");
+
+      // Get task to check teamId
+      const getTaskCommand = new GetCommand({
+        TableName: TASKS_TABLE,
+        Key: { taskId },
+      });
+
+      const taskResult = await dynamodb.send(getTaskCommand);
+
+      if (!taskResult.Item) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      const task = taskResult.Item;
+
+      // Check if task is assigned to this user
+      const userId = req.user.sub;
+      if (task.assigneeId !== userId) {
+        return res.status(403).json({ error: "Forbidden: You can only delete images from tasks assigned to you" });
+      }
+    }
+    // Managers can delete any image
+
     // Delete from originals bucket
     const deleteOriginalCommand = new DeleteObjectCommand({
       Bucket: ORIGINALS_BUCKET,
@@ -86,6 +152,19 @@ exports.deleteImage = async (req, res) => {
       console.log("Resized image not found or already deleted:", err.message);
     }
 
+    // Update task in DynamoDB to remove image references
+    const { UpdateCommand } = require("@aws-sdk/lib-dynamodb");
+    const updateCommand = new UpdateCommand({
+      TableName: TASKS_TABLE,
+      Key: { taskId },
+      UpdateExpression: "REMOVE imageUrl, imageKey SET updatedAt = :updatedAt",
+      ExpressionAttributeValues: {
+        ":updatedAt": new Date().toISOString(),
+      },
+    });
+
+    await dynamodb.send(updateCommand);
+
     return res.status(200).json({
       message: "Image deleted successfully",
       deletedKey: key,
@@ -99,14 +178,46 @@ exports.deleteImage = async (req, res) => {
 // PUT /api/uploads/link - Link image to task in DynamoDB
 exports.linkImageToTask = async (req, res) => {
   try {
-    const { taskId, imageUrl, imageKey } = req.body;
+    const { taskId, key } = req.body;
 
     // Validate required fields
-    if (!taskId || !imageUrl || !imageKey) {
-      return res.status(400).json({ error: "Missing required fields: taskId, imageUrl, imageKey" });
+    if (!taskId || !key) {
+      return res.status(400).json({ error: "Missing required fields: taskId, key" });
     }
 
+    // Authorization: Check if user can link image to this task
+    const userRole = req.user["custom:role"];
+
+    // If employee, verify task belongs to their team
+    if (userRole === "employee") {
+      const { GetCommand } = require("@aws-sdk/lib-dynamodb");
+
+      // Get task to check teamId
+      const getTaskCommand = new GetCommand({
+        TableName: TASKS_TABLE,
+        Key: { taskId },
+      });
+
+      const taskResult = await dynamodb.send(getTaskCommand);
+
+      if (!taskResult.Item) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      const task = taskResult.Item;
+
+      // Check if task is assigned to this user
+      const userId = req.user.sub;
+      if (task.assigneeId !== userId) {
+        return res.status(403).json({ error: "Forbidden: You can only link images to tasks assigned to you" });
+      }
+    }
+    // Managers can link images to any task
+
     const now = new Date().toISOString();
+
+    // Generate CloudFront URL
+    const imageUrl = `https://${process.env.CLOUDFRONT_DOMAIN}/${key}`;
 
     // Update task in DynamoDB
     const command = new UpdateCommand({
@@ -120,7 +231,7 @@ exports.linkImageToTask = async (req, res) => {
       },
       ExpressionAttributeValues: {
         ":imageUrl": imageUrl,
-        ":imageKey": imageKey,
+        ":imageKey": key,
         ":updatedAt": now,
       },
       ReturnValues: "ALL_NEW",
@@ -132,7 +243,10 @@ exports.linkImageToTask = async (req, res) => {
       return res.status(404).json({ error: "Task not found" });
     }
 
-    return res.status(200).json(result.Attributes);
+    return res.status(200).json({
+      imageUrl,
+      imageKey: key,
+    });
   } catch (error) {
     console.error("Error linking image to task:", error);
     return res.status(500).json({ error: "Failed to link image to task" });

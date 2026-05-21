@@ -45,6 +45,8 @@ const AuthController = {
                 name,
                 role,
                 teamId,
+                subscriptionStatus: "none",
+                subscriptionArn: null,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             }

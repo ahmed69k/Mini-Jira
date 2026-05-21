@@ -24,10 +24,19 @@ const TaskForm = ({ onSuccess, onCancel, initialData = null }) => {
   const fetchUsers = async () => {
     try {
       setLoadingUsers(true);
-      const response = await api.get('/');
+      const response = await api.get('/users');
+      console.log('Fetched users:', response.data);
       setUsers(response.data);
     } catch (err) {
       console.error('Error fetching users:', err);
+      // Try alternative endpoint
+      try {
+        const altResponse = await api.get('/');
+        console.log('Fetched users from alt endpoint:', altResponse.data);
+        setUsers(altResponse.data);
+      } catch (altErr) {
+        console.error('Error fetching users from alt endpoint:', altErr);
+      }
     } finally {
       setLoadingUsers(false);
     }
