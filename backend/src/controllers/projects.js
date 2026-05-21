@@ -2,7 +2,7 @@ const { v4: uuidv4 } = require("uuid");
 const dynamodb = require("../config/dynamodb");
 const { PutCommand, ScanCommand, GetCommand, UpdateCommand, DeleteCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 
-const PROJECTS_TABLE = "Projects";
+const PROJECTS_TABLE = "projects";
 
 // POST /api/projects - Create new project (manager only)
 exports.createProject = async (req, res) => {
