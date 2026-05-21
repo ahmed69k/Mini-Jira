@@ -1,0 +1,171 @@
+/**
+ * Lambda: Daily Digest
+ * ---------------------
+ * Triggered by EventBridge at 09:00 AM UTC every day.
+ * Finds all tasks due today that are not Done, groups them by
+ * assignee, and sends each assignee one digest email via SNS.
+ *
+ * Environment variables (set in Lambda console):
+ *   AWS_REGION      – already set by Lambda runtime (us-east-1)
+ *   TASKS_TABLE     – DynamoDB Tasks table name
+ *   DIGEST_SNS_ARN  – arn:aws:sns:us-east-1:487123915838:task
+ */
+
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBDocumentClient, ScanCommand } = require("@aws-sdk/lib-dynamodb");
+const { SNSClient, PublishCommand } = require("@aws-sdk/client-sns");
+
+// ── AWS clients ──────────────────────────────────────────────────────────────
+const region = process.env.AWS_REGION || "us-east-1";
+
+const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({ region }));
+const sns    = new SNSClient({ region });
+
+const TASKS_TABLE = process.env.TASKS_TABLE  || "Tasks";
+const SNS_ARN     = process.env.DIGEST_SNS_ARN;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Returns today's date as "YYYY-MM-DD" in UTC */
+function todayUTC() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Scan the Tasks table for tasks due today that are not Done.
+ * DynamoDBDocumentClient returns plain JS objects — no unmarshalling needed.
+ */
+async function fetchTasksDueToday(today) {
+  const tasks   = [];
+  let lastKey   = undefined;
+
+  do {
+    const result = await dynamo.send(new ScanCommand({
+      TableName: TASKS_TABLE,
+      FilterExpression: "#deadline = :today AND #status <> :done",
+      ExpressionAttributeNames: {
+        "#deadline": "deadline",
+        "#status":   "status",
+      },
+      ExpressionAttributeValues: {
+        ":today": today,
+        ":done":  "Done",
+      },
+      ExclusiveStartKey: lastKey,
+    }));
+
+    (result.Items || []).forEach((item) => tasks.push(item));
+    lastKey = result.LastEvaluatedKey;
+
+  } while (lastKey);
+
+  return tasks;
+}
+
+/**
+ * Group tasks by assigneeId.
+ * Returns a Map: assigneeId → { assigneeId, assigneeEmail, assigneeName, tasks[] }
+ */
+function groupByAssignee(tasks) {
+  const map = new Map();
+
+  for (const task of tasks) {
+    const id = task.assigneeId || "unassigned";
+    if (!map.has(id)) {
+      map.set(id, {
+        assigneeId:    id,
+        assigneeEmail: task.assigneeEmail || null,
+        assigneeName:  task.assigneeName  || id,
+        tasks:         [],
+      });
+    }
+    map.get(id).tasks.push(task);
+  }
+
+  return map;
+}
+
+/** Build a plain-text digest email for one assignee */
+function buildEmailBody(assignee, today) {
+  const lines = [
+    `Hi ${assignee.assigneeName},`,
+    ``,
+    `This is your daily task digest for ${today}.`,
+    `The following task(s) are due today and are not yet Done:`,
+    ``,
+  ];
+
+  assignee.tasks.forEach((t, i) => {
+    lines.push(`${i + 1}. [${t.priority || "Normal"}] ${t.title}`);
+    lines.push(`   Status : ${t.status}`);
+    lines.push(`   Team   : ${t.teamName || t.teamId}`);
+    if (t.description) {
+      lines.push(`   Details: ${t.description.slice(0, 120)}`);
+    }
+    lines.push(``);
+  });
+
+  lines.push(`Please update your task statuses on Mini-Jira.`);
+  lines.push(`Have a productive day!`);
+
+  return lines.join("\n");
+}
+
+/**
+ * Publish one SNS message for a specific assignee.
+ * MessageAttributes let SNS subscription filter policies route
+ * each digest only to the correct subscriber.
+ */
+async function sendDigest(assignee, today) {
+  if (!assignee.assigneeEmail) {
+    console.warn(`[DailyDigest] No email for assigneeId=${assignee.assigneeId}, skipping.`);
+    return;
+  }
+
+  await sns.send(new PublishCommand({
+    TopicArn: SNS_ARN,
+    Subject:  `[Mini-Jira] Your task digest for ${today}`,
+    Message:  buildEmailBody(assignee, today),
+    MessageAttributes: {
+      assigneeEmail: { DataType: "String", StringValue: assignee.assigneeEmail },
+      assigneeId:    { DataType: "String", StringValue: assignee.assigneeId },
+    },
+  }));
+
+  console.log(`[DailyDigest] Sent to ${assignee.assigneeEmail} (${assignee.tasks.length} task(s))`);
+}
+
+// ── Handler ──────────────────────────────────────────────────────────────────
+
+exports.handler = async () => {
+  if (!SNS_ARN) throw new Error("DIGEST_SNS_ARN environment variable is not set.");
+
+  const today = todayUTC();
+  console.log(`[DailyDigest] Running for date: ${today}`);
+
+  const tasks = await fetchTasksDueToday(today);
+  console.log(`[DailyDigest] Found ${tasks.length} task(s) due today.`);
+
+  if (tasks.length === 0) {
+    return { message: "No tasks due today." };
+  }
+
+  const byAssignee = groupByAssignee(tasks);
+  console.log(`[DailyDigest] Sending digests to ${byAssignee.size} assignee(s).`);
+
+  const results = { sent: 0, skipped: 0, errors: [] };
+
+  for (const assignee of byAssignee.values()) {
+    try {
+      await sendDigest(assignee, today);
+      results.sent++;
+    } catch (err) {
+      console.error(`[DailyDigest] Failed for ${assignee.assigneeEmail}:`, err);
+      results.errors.push({ assigneeId: assignee.assigneeId, error: err.message });
+      results.skipped++;
+    }
+  }
+
+  console.log(`[DailyDigest] Done. Sent=${results.sent}, Skipped=${results.skipped}`);
+  return results;
+};
