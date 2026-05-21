@@ -27,6 +27,14 @@ const AuthController = {
                     {
                         Name: "name",
                         Value: name
+                    },
+                    {
+                        Name: "custom:role",
+                        Value: role
+                    },
+                    {
+                        Name: "custom:teamId",
+                        Value: teamId
                     }
                 ]
             }))

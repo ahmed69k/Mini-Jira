@@ -89,10 +89,29 @@ exports.getTasks = async (req, res) => {
   try {
     const { teamId } = req.query;
     const userRole = req.user["custom:role"];
-    const userTeamId = req.user["custom:teamId"];
+    const userId = req.user.sub;
 
-    // If user is employee, only return tasks from their team
+    // If user is employee, get their teamId from database and filter tasks
     if (userRole === "employee") {
+      // Get user's teamId from database
+      const userCommand = new GetCommand({
+        TableName: "users",
+        Key: { userId }
+      });
+      const userResult = await dynamodb.send(userCommand);
+      const userTeamId = userResult.Item?.teamId;
+
+      console.log('Employee fetching tasks:', {
+        userId,
+        userTeamId,
+        userRole,
+        userItem: userResult.Item
+      });
+
+      if (!userTeamId) {
+        return res.status(400).json({ error: "User team not found" });
+      }
+
       const command = new QueryCommand({
         TableName: TASKS_TABLE,
         IndexName: "teamId-index",
@@ -103,6 +122,7 @@ exports.getTasks = async (req, res) => {
       });
 
       const result = await dynamodb.send(command);
+      console.log('Filtered tasks for employee:', result.Items?.length, 'tasks');
       return res.status(200).json(result.Items || []);
     }
 
@@ -358,11 +378,14 @@ exports.updateStatus = async (req, res) => {
 
     const task = getResult.Item;
 
-    // If employee, check if task belongs to their team
+    // If employee, check if task is assigned to them
     const userRole = req.user["custom:role"];
-    const userTeamId = req.user["custom:teamId"];
-    if (userRole === "employee" && task.teamId !== userTeamId) {
-      return res.status(403).json({ error: "Forbidden: You can only update tasks in your team" });
+    const userId = req.user.sub;
+
+    if (userRole === "employee") {
+      if (task.assigneeId !== userId) {
+        return res.status(403).json({ error: "Forbidden: You can only update tasks assigned to you" });
+      }
     }
 
     const oldStatus = task.status;
