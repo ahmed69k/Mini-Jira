@@ -281,6 +281,20 @@ exports.createTask = async (req, res) => {
       return res.status(400).json({ error: "Invalid priority. Must be LOW, MEDIUM, or HIGH" });
     }
 
+    // Get assignee details from users table
+    const getUserCommand = new GetCommand({
+      TableName: "users",
+      Key: { userId: assigneeId },
+    });
+
+    const userResult = await dynamodb.send(getUserCommand);
+
+    if (!userResult.Item) {
+      return res.status(404).json({ error: "Assignee user not found" });
+    }
+
+    const assigneeUser = userResult.Item;
+
     const taskId = uuidv4();
     const now = new Date().toISOString();
 
@@ -292,6 +306,8 @@ exports.createTask = async (req, res) => {
       priority,
       deadline,
       assigneeId,
+      assigneeEmail: assigneeUser.email,
+      assigneeName: assigneeUser.name,
       teamId,
       projectId,
       ...(imageUrl && { imageUrl }),
@@ -523,6 +539,23 @@ exports.updateTask = async (req, res) => {
       return res.status(400).json({ error: "Invalid priority. Must be LOW, MEDIUM, or HIGH" });
     }
 
+    // If assigneeId is being changed, get new assignee details
+    let newAssigneeData = null;
+    if (assigneeId !== undefined) {
+      const getUserCommand = new GetCommand({
+        TableName: "users",
+        Key: { userId: assigneeId },
+      });
+
+      const userResult = await dynamodb.send(getUserCommand);
+
+      if (!userResult.Item) {
+        return res.status(404).json({ error: "Assignee user not found" });
+      }
+
+      newAssigneeData = userResult.Item;
+    }
+
     const now = new Date().toISOString();
 
     // Build update expression
@@ -554,6 +587,15 @@ exports.updateTask = async (req, res) => {
       updateExpressions.push("#assigneeId = :assigneeId");
       expressionAttributeNames["#assigneeId"] = "assigneeId";
       expressionAttributeValues[":assigneeId"] = assigneeId;
+
+      // Also update assigneeEmail and assigneeName
+      updateExpressions.push("#assigneeEmail = :assigneeEmail");
+      expressionAttributeNames["#assigneeEmail"] = "assigneeEmail";
+      expressionAttributeValues[":assigneeEmail"] = newAssigneeData.email;
+
+      updateExpressions.push("#assigneeName = :assigneeName");
+      expressionAttributeNames["#assigneeName"] = "assigneeName";
+      expressionAttributeValues[":assigneeName"] = newAssigneeData.name;
     }
     if (teamId !== undefined) {
       updateExpressions.push("#teamId = :teamId");
