@@ -1,50 +1,83 @@
-import { useState, useEffect } from 'react';
-import './App.css';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './components/auth/Login';
-import ProjectsPage from './components/projects/ProjectsPage';
-import { authAPI } from './services/auth';
+import Register from './components/auth/Register';
+import KanbanBoard from './components/tasks/KanbanBoard';
+import './App.css';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(authAPI.isAuthenticated());
-  const [user, setUser] = useState(authAPI.getCurrentUser());
+  return (
+    <Router>
+      <AppContent />
+    </Router>
+  );
+}
 
-  useEffect(() => {
-    const authenticated = authAPI.isAuthenticated();
-    setIsAuthenticated(authenticated);
-    if (authenticated) {
-      setUser(authAPI.getCurrentUser());
-    }
-  }, []);
+function AppContent() {
+  const location = useLocation();
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
-  const handleLoginSuccess = () => {
-    setIsAuthenticated(true);
-    setUser(authAPI.getCurrentUser());
+  // Check if user is logged in
+  const isAuthenticated = () => {
+    return !!localStorage.getItem('idToken');
   };
 
-  const handleLogout = () => {
-    authAPI.logout();
-    setIsAuthenticated(false);
-    setUser(null);
+  // Protected route wrapper
+  const ProtectedRoute = ({ children }) => {
+    return isAuthenticated() ? children : <Navigate to="/login" />;
   };
-
-  if (!isAuthenticated) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
-  }
 
   return (
     <div className="app">
-      <nav className="navbar">
-        <div className="navbar-brand">
-          <h1>Mini-Jira</h1>
-        </div>
-        <ul className="nav-links">
-          <li><span className="user-info">{user?.email}</span></li>
-          <li><button onClick={handleLogout}>Logout</button></li>
-        </ul>
-      </nav>
+      {!isAuthPage && isAuthenticated() && (
+        <header className="app-header">
+          <div className="container">
+            <h1 className="app-title">Mini Jira</h1>
+            <nav className="app-nav">
+              <button
+                className="btn-logout"
+                onClick={() => {
+                  localStorage.removeItem('idToken');
+                  localStorage.removeItem('accessToken');
+                  localStorage.removeItem('user');
+                  window.location.href = '/login';
+                }}
+              >
+                Logout
+              </button>
+            </nav>
+          </div>
+        </header>
+      )}
 
-      <main className="main-content">
-        <ProjectsPage user={user} />
+      <main className="app-main">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              isAuthenticated() ? <Navigate to="/tasks" /> : <Navigate to="/login" />
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              isAuthenticated() ? <Navigate to="/tasks" /> : <Login />
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              isAuthenticated() ? <Navigate to="/tasks" /> : <Register />
+            }
+          />
+          <Route
+            path="/tasks"
+            element={
+              <ProtectedRoute>
+                <KanbanBoard />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
       </main>
     </div>
   );

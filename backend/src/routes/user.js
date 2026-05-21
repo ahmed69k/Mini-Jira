@@ -4,7 +4,8 @@ const authMiddleware = require("../middleware/auth")
 
 const router = express.Router()
 
-router.get('/me',authMiddleware, UserController.getUserProfile);
+router.get('/', authMiddleware, UserController.getAllUsers);
+router.get('/me', authMiddleware, UserController.getUserProfile);
 router.put('/update-me', authMiddleware, UserController.updateUserProfile);
 router.delete('/delete-me', authMiddleware, UserController.deleteUserProfile);
 
