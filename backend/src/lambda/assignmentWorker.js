@@ -31,10 +31,43 @@ const ACTIVITY_LOG_TABLE = process.env.ACTIVITY_LOG_TABLE || "ActivityLogs";
  * Parse an SQS record.
  * When SQS receives from SNS, the real payload is nested inside
  * record.body → outer.Message (both JSON strings).
+ *
+ * Person 2's SNS message is plain text (not JSON), so we extract
+ * what we need from it using simple string parsing as a fallback.
  */
 function parseRecord(record) {
-  const outer = JSON.parse(record.body);
-  return typeof outer.Message === "string" ? JSON.parse(outer.Message) : outer;
+  const outer = JSON.parse(record.body); // SQS body is always JSON
+
+  // outer.Message is the raw SNS message string
+  const rawMessage = outer.Message || "";
+
+  // Try JSON first (in case Person 2 updates their code later)
+  try {
+    const parsed = JSON.parse(rawMessage);
+    if (parsed && typeof parsed === "object") return parsed;
+  } catch (_) {
+    // not JSON — fall through to plain-text extraction
+  }
+
+  // Plain-text fallback: extract fields from Person 2's message format
+  // "- Title:       Fix login bug"
+  const extract = (label) => {
+    const match = rawMessage.match(new RegExp(`-\\s*${label}:\\s*(.+)`));
+    return match ? match[1].trim() : "unknown";
+  };
+
+  return {
+    taskId:      outer.MessageId   || "unknown", // SNS message ID as fallback
+    taskTitle:   extract("Title"),
+    teamId:      extract("Team"),
+    teamName:    extract("Team"),
+    assigneeId:  extract("Assigned by").includes("manager")
+                   ? outer.MessageAttributes?.assigneeId?.Value || "unknown"
+                   : extract("Assigned by"),
+    assignedBy:  "manager",
+    priority:    extract("Priority"),
+    deadline:    extract("Deadline"),
+  };
 }
 
 /**
