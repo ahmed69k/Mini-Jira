@@ -39,11 +39,11 @@ exports.handler = async (event) => {
 
     console.log(`Original image size: ${imageBuffer.length} bytes`);
 
-    // 2. Resize image to 300x300 using Jimp (correct syntax for v1.x)
+    // 2. Resize image to 300x300 using Jimp (correct syntax)
     const image = await Jimp.read(imageBuffer);
 
-    // Resize and cover (crop to fit) - v1.x uses object syntax
-    await image.cover({ w: 300, h: 300 });
+    // Resize and cover (crop to fit)
+    await image.cover(300, 300);
 
     // Convert to buffer
     const resizedImageBuffer = await image.getBuffer("image/jpeg");

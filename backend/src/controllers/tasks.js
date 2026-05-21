@@ -655,6 +655,35 @@ exports.deleteTask = async (req, res) => {
       return res.status(404).json({ error: "Task not found" });
     }
 
+    const task = getResult.Item;
+
+    // Delete images from S3 if task has an image
+    if (task.imageKey) {
+      const { DeleteObjectCommand } = require("@aws-sdk/client-s3");
+
+      try {
+        // Delete from originals bucket
+        const deleteOriginalCommand = new DeleteObjectCommand({
+          Bucket: S3_ORIGINALS_BUCKET,
+          Key: task.imageKey,
+        });
+        await s3Client.send(deleteOriginalCommand);
+        console.log(`Deleted image from originals bucket: ${task.imageKey}`);
+
+        // Delete from resized bucket (same key, not prefixed)
+        const deleteResizedCommand = new DeleteObjectCommand({
+          Bucket: process.env.S3_RESIZED_BUCKET,
+          Key: task.imageKey,
+        });
+        await s3Client.send(deleteResizedCommand);
+        console.log(`Deleted image from resized bucket: ${task.imageKey}`);
+      } catch (s3Error) {
+        // Log error but don't fail task deletion if S3 delete fails
+        console.error("Error deleting images from S3:", s3Error);
+      }
+    }
+
+    // Delete task from DynamoDB
     const deleteCommand = new DeleteCommand({
       TableName: TASKS_TABLE,
       Key: { taskId: id },

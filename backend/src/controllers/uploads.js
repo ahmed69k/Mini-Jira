@@ -137,16 +137,17 @@ exports.deleteImage = async (req, res) => {
     });
 
     await s3Client.send(deleteOriginalCommand);
+    console.log(`✅ Deleted from originals bucket: ${key}`);
 
-    // Delete from resized bucket (thumbnail)
-    const resizedKey = `resized/${key}`;
+    // Delete from resized bucket (Lambda saves with same key, not prefixed)
     const deleteResizedCommand = new DeleteObjectCommand({
       Bucket: RESIZED_BUCKET,
-      Key: resizedKey,
+      Key: key, // Same key as original, not resized/key
     });
 
     try {
       await s3Client.send(deleteResizedCommand);
+      console.log(`✅ Deleted from resized bucket: ${key}`);
     } catch (err) {
       // If resized image doesn't exist, continue
       console.log("Resized image not found or already deleted:", err.message);
