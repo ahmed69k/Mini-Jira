@@ -8,7 +8,7 @@ const ImageUpload = ({ taskId, imageUrl, imageKey, onImageUpdate, onImageDelete 
   const [deleting, setDeleting] = useState(false);
 
   // Vite uses import.meta.env instead of process.env
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://mini-jira-alb-561216234.us-east-1.elb.amazonaws.com';
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
   const getAuthToken = () => {

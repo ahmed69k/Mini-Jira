@@ -25,7 +25,7 @@ const Register = () => {
   useEffect(() => {
     const fetchTeams = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const API_URL = import.meta.env.VITE_API_URL || 'http://mini-jira-alb-561216234.us-east-1.elb.amazonaws.com';
         const res = await axios.get(`${API_URL}/api/teams`);
         setTeams(res.data || []);
       } catch (err) {
@@ -53,7 +53,7 @@ const Register = () => {
     setError(null);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const API_URL = import.meta.env.VITE_API_URL || 'http://mini-jira-alb-561216234.us-east-1.elb.amazonaws.com';
 
       await axios.post(`${API_URL}/api/register`, {
         ...formData,
@@ -78,7 +78,7 @@ const Register = () => {
     setError(null);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const API_URL = import.meta.env.VITE_API_URL || 'http://mini-jira-alb-561216234.us-east-1.elb.amazonaws.com';
 
       await axios.post(`${API_URL}/api/auth/confirm`, {
         email: formData.email,
