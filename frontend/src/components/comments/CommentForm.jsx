@@ -1,114 +1,165 @@
-// frontend/src/components/comments/CommentForm.jsx
-import React, { useState } from 'react';
-import { Send, Loader2 } from 'lucide-react';
-import { addComment } from '../../services/api';
-import { useAuth } from '../../hooks/useAuth';
-import toast from 'react-hot-toast';
+// comments/CommentForm.jsx
+import { useState } from 'react';
+import axios from 'axios';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+const MAX_CHARS = 1000;
 
 const CommentForm = ({ taskId, onCommentAdded }) => {
   const [content, setContent] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [characterCount, setCharacterCount] = useState(0);
-  const { user } = useAuth();
-  
-  const MAX_CHARS = 500;
-  
-  const handleContentChange = (e) => {
-    const newContent = e.target.value;
-    if (newContent.length <= MAX_CHARS) {
-      setContent(newContent);
-      setCharacterCount(newContent.length);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const charsLeft = MAX_CHARS - content.length;
+  const isOverLimit = charsLeft < 0;
+  const isEmpty = content.trim().length === 0;
+
+  const handleChange = (e) => {
+    setContent(e.target.value);
+
+    if (error) {
+      setError(null);
     }
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!content.trim()) {
-      toast.error('Comment cannot be empty');
+
+    if (isEmpty || isOverLimit || !taskId) {
       return;
     }
-    
-    if (!user) {
-      toast.error('You must be logged in to comment');
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
+
+    setLoading(true);
+    setError(null);
+
     try {
-      const response = await addComment(taskId, content.trim());
-      const newComment = response.data || response;
-      
-      // Clear form
+      const token = localStorage.getItem('idToken');
+
+      const response = await axios.post(
+        `${API_BASE_URL}/api/comments`,
+        {
+          taskId,
+          content: content.trim(),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
       setContent('');
-      setCharacterCount(0);
-      
-      // Notify parent
+
+      // Backend returns the created comment directly
       if (onCommentAdded) {
-        onCommentAdded(newComment);
+        onCommentAdded(response.data);
       }
-      
-      toast.success('Comment added successfully');
-    } catch (error) {
-      console.error('Error adding comment:', error);
-      toast.error(error.response?.data?.message || 'Failed to add comment');
+    } catch (err) {
+      console.error('Failed to post comment:', err);
+
+      setError(
+        err.response?.data?.error ||
+          'Failed to post comment. Please try again.'
+      );
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
-  
-  const handleKeyDown = (e) => {
-    // Submit on Ctrl+Enter or Cmd+Enter
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      handleSubmit(e);
-    }
-  };
-  
+
   return (
-    <div className="backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl p-6">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl p-5">
+      <h4 className="text-sm font-semibold text-slate-300 mb-3">
+        Add a Comment
+      </h4>
+
+      {error && (
+        <div className="mb-3 p-3 rounded-lg bg-red-500/20 border border-red-500/40 text-red-200 text-xs">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-3">
         <div className="relative">
           <textarea
             value={content}
-            onChange={handleContentChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Write a comment... (Press Ctrl+Enter to submit)"
+            onChange={handleChange}
+            placeholder="Write a comment..."
             rows={3}
-            className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none"
-            disabled={isSubmitting}
+            disabled={loading}
+            className={`w-full px-4 py-3 rounded-lg text-sm text-white placeholder-slate-500 bg-white/10 border resize-none focus:outline-none focus:ring-2 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed ${
+              isOverLimit
+                ? 'border-red-500/50 focus:ring-red-500 bg-red-500/5'
+                : 'border-white/20 focus:ring-indigo-500'
+            }`}
           />
-          
-          {/* Character counter */}
-          <div className="absolute bottom-2 right-3 text-xs text-slate-400">
-            {characterCount}/{MAX_CHARS}
-          </div>
+
+          <span
+            className={`absolute bottom-3 right-3 text-xs ${
+              isOverLimit
+                ? 'text-red-400 font-semibold'
+                : charsLeft < 100
+                ? 'text-amber-400'
+                : 'text-slate-500'
+            }`}
+          >
+            {charsLeft}
+          </span>
         </div>
-        
+
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={isSubmitting || !content.trim()}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition disabled:opacity-60 disabled:cursor-not-allowed shadow-lg"
+            disabled={loading || isEmpty || isOverLimit}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm text-white bg-indigo-600 hover:bg-indigo-500 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
           >
-            {isSubmitting ? (
+            {loading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <svg
+                  className="w-3.5 h-3.5 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4l3-3-3-3V4a10 10 0 100 20v-4l-3 3 3 3v-4a8 8 0 01-8-8z"
+                  />
+                </svg>
+
                 Posting...
               </>
             ) : (
               <>
-                <Send className="w-4 h-4" />
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                  />
+                </svg>
+
                 Post Comment
               </>
             )}
           </button>
         </div>
-        
-        {/* Keyboard shortcut hint */}
-        <p className="text-xs text-slate-400 text-right">
-          Tip: Press <kbd className="px-1 py-0.5 bg-white/10 rounded">Ctrl</kbd> + <kbd className="px-1 py-0.5 bg-white/10 rounded">Enter</kbd> to submit
-        </p>
       </form>
     </div>
   );

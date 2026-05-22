@@ -1,289 +1,273 @@
-import React, { useEffect, useState } from "react";
-import PropTypes from "prop-types";
-import { X, Loader2, AlertCircle } from "lucide-react";
-import { getTeams } from "../../services/teamsApi";
+// projects/ProjectForm.jsx
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
-/**
- * ProjectForm
- *
- * Modal dialog for creating or editing a project.
- * Opens when `isOpen` is true. Calls `onSubmit` with form data on save.
- *
- * Props:
- *   isOpen       — boolean
- *   onClose      — () => void
- *   onSubmit     — (data: { name, description, teamId }) => Promise<void>
- *   initialData  — project object (editing) | null (creating)
- *   isSubmitting — boolean (parent controls loading state)
- */
-export default function ProjectForm({ isOpen, onClose, onSubmit, initialData, isSubmitting }) {
-  const [form, setForm] = useState({ name: "", description: "", teamId: "" });
-  const [errors, setErrors] = useState({});
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+const STATUS_OPTIONS = [
+  { value: 'planning', label: 'Planning' },
+  { value: 'active', label: 'Active' },
+  { value: 'on_hold', label: 'On Hold' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+
+const ProjectForm = ({ initialData = null, onSuccess, onCancel }) => {
+  const isEditMode = Boolean(initialData?.projectId);
+
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    teamId: '',
+    status: 'planning',
+  });
+
   const [teams, setTeams] = useState([]);
-  const [teamsLoading, setTeamsLoading] = useState(false);
-  const [teamsError, setTeamsError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [teamsLoading, setTeamsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
-  // Reset form when modal opens/closes or switches between create/edit
   useEffect(() => {
-    if (isOpen) {
-      setForm({
-        name: initialData?.name ?? "",
-        description: initialData?.description ?? "",
-        teamId: initialData?.teamId ?? "",
+    if (initialData) {
+      setFormData({
+        title: initialData.title || '',
+        description: initialData.description || '',
+        teamId: initialData.teamId || '',
+        status: initialData.status || 'planning',
       });
-      setErrors({});
-      fetchTeams();
     }
-  }, [isOpen, initialData]);
+  }, [initialData]);
 
-  // Trap focus / close on Escape
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e) => e.key === "Escape" && !isSubmitting && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, isSubmitting, onClose]);
 
-  async function fetchTeams() {
-    setTeamsLoading(true);
-    setTeamsError(null);
-    try {
-      const res = await getTeams();
-      setTeams(res.data || []);
-    } catch {
-      setTeamsError("Could not load teams. Enter a team ID manually.");
-      setTeams([]);
-    } finally {
-      setTeamsLoading(false);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        [name]: null,
+      }));
     }
-  }
+  };
 
-  function validate() {
-    const errs = {};
-    if (!form.name.trim()) errs.name = "Project name is required.";
-    else if (form.name.trim().length > 80) errs.name = "Name must be 80 characters or fewer.";
-    if (form.description.length > 500) errs.description = "Description must be 500 characters or fewer.";
-    if (!form.teamId.trim()) errs.teamId = "Team is required.";
-    return errs;
-  }
+  const validate = () => {
+    const errors = {};
 
-  async function handleSubmit(e) {
+    if (!formData.title.trim()) {
+      errors.title = 'Project title is required.';
+    } else if (formData.title.trim().length < 3) {
+      errors.title = 'Title must be at least 3 characters.';
+    }
+
+    if (!formData.teamId) {
+      errors.teamId = 'Team selection is required.';
+    }
+
+    if (formData.description.length > 500) {
+      errors.description =
+        'Description must be under 500 characters.';
+    }
+
+    return errors;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) {
-      setErrors(errs);
+
+    setError(null);
+
+    const errors = validate();
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
-    await onSubmit({
-      name: form.name.trim(),
-      description: form.description.trim(),
-      teamId: form.teamId.trim(),
-    });
-  }
 
-  function handleChange(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
-  }
+    setLoading(true);
 
-  if (!isOpen) return null;
+    try {
+      const token = localStorage.getItem('idToken');
 
-  const isEditing = Boolean(initialData?.projectId);
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
+      // Match backend EXACTLY
+      const payload = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        teamId: formData.teamId,
+      };
+
+      if (isEditMode) {
+        await axios.put(
+          `${API_BASE_URL}/api/projects/${initialData.projectId}`,
+          payload,
+          { headers }
+        );
+      } else {
+        await axios.post(
+          `${API_BASE_URL}/api/projects`,
+          payload,
+          { headers }
+        );
+      }
+
+      onSuccess();
+    } catch (err) {
+      console.error('Project form error:', err);
+
+      setError(
+        err.response?.data?.error ||
+          `Failed to ${
+            isEditMode ? 'update' : 'create'
+          } project. Please try again.`
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputClass =
+    'w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-sm';
+
+  const errorInputClass =
+    'w-full px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/40 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition text-sm';
 
   return (
-    /* Backdrop */
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      aria-modal="true"
-      role="dialog"
-      aria-label={isEditing ? "Edit project" : "Create new project"}
-    >
-      {/* Dim overlay */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={!isSubmitting ? onClose : undefined}
-      />
+    <div className="backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl p-8 w-full max-w-lg mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-white">
+          {isEditMode ? 'Edit Project' : 'Create Project'}
+        </h2>
 
-      {/* Panel - Glassmorphism */}
-      <div className="relative w-full max-w-lg backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
-          <h2 className="text-lg font-semibold text-white">
-            {isEditing ? "Edit Project" : "New Project"}
-          </h2>
-          <button
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-40"
-            aria-label="Close modal"
-          >
-            <X size={18} />
-          </button>
+        <p className="text-slate-400 text-sm mt-1">
+          {isEditMode
+            ? 'Update your project details below.'
+            : 'Fill in the details to create a new project.'}
+        </p>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="mb-5 p-3 rounded-lg bg-red-500/20 border border-red-500/40 text-red-200 text-sm">
+          {error}
+        </div>
+      )}
+
+      <form className="space-y-5" onSubmit={handleSubmit}>
+        {/* Project Title */}
+        <div>
+          <label className="block text-sm text-slate-300 mb-1">
+            Project Title{' '}
+            <span className="text-red-400">*</span>
+          </label>
+
+          <input
+            type="text"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            placeholder="e.g. Website Redesign"
+            className={
+              fieldErrors.title
+                ? errorInputClass
+                : inputClass
+            }
+          />
+
+          {fieldErrors.title && (
+            <p className="mt-1 text-xs text-red-400">
+              {fieldErrors.title}
+            </p>
+          )}
         </div>
 
-        {/* Form body */}
-        <form onSubmit={handleSubmit} noValidate>
-          <div className="px-6 py-5 flex flex-col gap-5">
-            {/* Project name */}
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="proj-name"
-                className="text-sm font-medium text-slate-200"
-              >
-                Project Name <span className="text-red-400">*</span>
-              </label>
-              <input
-                id="proj-name"
-                type="text"
-                value={form.name}
-                onChange={(e) => handleChange("name", e.target.value)}
-                placeholder="e.g. Q3 Platform Redesign"
-                maxLength={80}
-                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm bg-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
-                  errors.name
-                    ? "border-red-400 focus:ring-red-300"
-                    : "border-white/20 focus:ring-indigo-400"
-                }`}
-                aria-describedby={errors.name ? "proj-name-error" : undefined}
-                aria-invalid={Boolean(errors.name)}
-              />
-              <div className="flex items-center justify-between">
-                {errors.name ? (
-                  <p id="proj-name-error" className="flex items-center gap-1 text-xs text-red-400">
-                    <AlertCircle size={12} /> {errors.name}
-                  </p>
-                ) : <span />}
-                <span className="text-xs text-slate-400">{form.name.length}/80</span>
-              </div>
-            </div>
+        {/* Description */}
+        <div>
+          <label className="block text-sm text-slate-300 mb-1">
+            Description
+            <span className="ml-2 text-slate-500 font-normal">
+              ({formData.description.length}/500)
+            </span>
+          </label>
 
-            {/* Description */}
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="proj-desc"
-                className="text-sm font-medium text-slate-200"
-              >
-                Description
-              </label>
-              <textarea
-                id="proj-desc"
-                value={form.description}
-                onChange={(e) => handleChange("description", e.target.value)}
-                placeholder="What is this project about?"
-                rows={3}
-                maxLength={500}
-                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm bg-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 resize-none transition-all ${
-                  errors.description
-                    ? "border-red-400 focus:ring-red-300"
-                    : "border-white/20 focus:ring-indigo-400"
-                }`}
-                aria-describedby={errors.description ? "proj-desc-error" : undefined}
-                aria-invalid={Boolean(errors.description)}
-              />
-              <div className="flex items-center justify-between">
-                {errors.description ? (
-                  <p id="proj-desc-error" className="flex items-center gap-1 text-xs text-red-400">
-                    <AlertCircle size={12} /> {errors.description}
-                  </p>
-                ) : <span />}
-                <span className="text-xs text-slate-400">{form.description.length}/500</span>
-              </div>
-            </div>
+          <textarea
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            placeholder="Describe the project goals and scope..."
+            rows={3}
+            className={`${
+              fieldErrors.description
+                ? errorInputClass
+                : inputClass
+            } resize-none`}
+          />
 
-            {/* Team */}
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="proj-team"
-                className="text-sm font-medium text-slate-200"
-              >
-                Team <span className="text-red-400">*</span>
-              </label>
+          {fieldErrors.description && (
+            <p className="mt-1 text-xs text-red-400">
+              {fieldErrors.description}
+            </p>
+          )}
+        </div>
 
-              {teamsError && (
-                <p className="text-xs text-amber-400 flex items-center gap-1">
-                  <AlertCircle size={12} /> {teamsError}
-                </p>
-              )}
+        {/* Status Selector */}
+        <div>
+          <label className="block text-sm text-slate-300 mb-1">
+            Status
+          </label>
 
-              {/* If teams loaded, show a select; otherwise show a text input as fallback */}
-              {teams.length > 0 ? (
-                <select
-                  id="proj-team"
-                  value={form.teamId}
-                  onChange={(e) => handleChange("teamId", e.target.value)}
-                  className={`w-full rounded-xl border px-3.5 py-2.5 text-sm bg-white/10 text-white focus:outline-none focus:ring-2 transition-all appearance-none ${
-                    errors.teamId
-                      ? "border-red-400 focus:ring-red-300"
-                      : "border-white/20 focus:ring-indigo-400"
-                  }`}
-                  aria-describedby={errors.teamId ? "proj-team-error" : undefined}
-                  aria-invalid={Boolean(errors.teamId)}
-                >
-                  <option value="" className="bg-slate-800">Select a team…</option>
-                  {teams.map((t) => (
-                    <option key={t.teamId} value={t.teamId} className="bg-slate-800">
-                      {t.name || t.teamId}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  id="proj-team"
-                  type="text"
-                  value={form.teamId}
-                  onChange={(e) => handleChange("teamId", e.target.value)}
-                  placeholder={teamsLoading ? "Loading teams…" : "Enter team ID"}
-                  disabled={teamsLoading}
-                  className={`w-full rounded-xl border px-3.5 py-2.5 text-sm bg-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 transition-all disabled:opacity-50 ${
-                    errors.teamId
-                      ? "border-red-400 focus:ring-red-300"
-                      : "border-white/20 focus:ring-indigo-400"
-                  }`}
-                />
-              )}
+          <select
+            name="status"
+            value={formData.status}
+            onChange={handleChange}
+            className="w-full px-4 py-3 rounded-lg bg-slate-800 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-sm appearance-none cursor-pointer"
+          >
+            {STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-              {errors.teamId && (
-                <p id="proj-team-error" className="flex items-center gap-1 text-xs text-red-400">
-                  <AlertCircle size={12} /> {errors.teamId}
-                </p>
-              )}
-            </div>
-          </div>
+        {/* Actions */}
+        <div className="flex gap-3 pt-1">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="flex-1 py-3 rounded-lg font-medium text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Cancel
+          </button>
 
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/20 bg-white/5">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-4 py-2 rounded-xl text-sm font-medium text-slate-200 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-40"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-lg"
-            >
-              {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-              {isEditing ? "Save Changes" : "Create Project"}
-            </button>
-          </div>
-        </form>
-      </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 py-3 rounded-lg font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
+          >
+            {loading
+              ? isEditMode
+                ? 'Saving...'
+                : 'Creating...'
+              : isEditMode
+              ? 'Save Changes'
+              : 'Create Project'}
+          </button>
+        </div>
+      </form>
     </div>
   );
-}
-
-ProjectForm.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired,
-  onSubmit: PropTypes.func.isRequired,
-  initialData: PropTypes.object,
-  isSubmitting: PropTypes.bool,
 };
 
-ProjectForm.defaultProps = {
-  initialData: null,
-  isSubmitting: false,
-};
+export default ProjectForm;

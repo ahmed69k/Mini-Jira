@@ -3,6 +3,7 @@ import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import KanbanBoard from './components/tasks/KanbanBoard';
 import ManagerDashboard from './components/dashboard/ManagerDashboard';
+import ProjectsPage from './components/projects/ProjectsPage';
 
 function App() {
   return (
@@ -82,6 +83,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <ManagerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <ProjectsPage />
               </ProtectedRoute>
             }
           />
