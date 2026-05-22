@@ -3,6 +3,7 @@ import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import KanbanBoard from './components/tasks/KanbanBoard';
 import './App.css';
+import ManagerDashboard from './components/dashboard/ManagerDashboard';
 
 function App() {
   return (
@@ -74,6 +75,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <KanbanBoard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <ManagerDashboard />
               </ProtectedRoute>
             }
           />
