@@ -37,3 +37,36 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+// Projects API helpers
+export const projectsAPI = {
+  getAll: async (teamId) => {
+    const url = teamId ? `/api/projects?teamId=${teamId}` : '/api/projects';
+    const res = await api.get(url);
+    return res.data;
+  },
+  create: async (data) => {
+    const res = await api.post('/api/projects', data);
+    return res.data;
+  },
+  update: async (id, data) => {
+    const res = await api.put(`/api/projects/${id}`, data);
+    return res.data;
+  },
+  delete: async (id) => {
+    const res = await api.delete(`/api/projects/${id}`);
+    return res.data;
+  },
+};
+
+// Comments API helpers
+export const commentsAPI = {
+  getByTaskId: async (taskId) => {
+    const res = await api.get(`/api/comments/${taskId}`);
+    return res.data;
+  },
+  create: async (data) => {
+    const res = await api.post('/api/comments', data);
+    return res.data;
+  },
+};

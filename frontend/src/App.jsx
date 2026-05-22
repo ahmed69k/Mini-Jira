@@ -3,6 +3,7 @@ import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import KanbanBoard from './components/tasks/KanbanBoard';
 import ManagerDashboard from './components/dashboard/ManagerDashboard';
+import ProjectsPage from './components/projects/ProjectsPage';
 import Navbar from './components/common/Navbar';
 
 function App() {
@@ -63,10 +64,7 @@ function AppContent() {
             path="/projects"
             element={
               <ProtectedRoute>
-                <div className="p-6">
-                  <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
-                  <p className="text-gray-500 mt-2">Projects page coming soon...</p>
-                </div>
+                <ProjectsPage />
               </ProtectedRoute>
             }
           />

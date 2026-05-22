@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { commentsAPI } from '../../services/api';
-import './CommentForm.css';
 
 export default function CommentForm({ taskId, onCommentAdded }) {
   const [content, setContent] = useState('');
@@ -32,22 +31,27 @@ export default function CommentForm({ taskId, onCommentAdded }) {
   };
 
   return (
-    <form className="comment-form" onSubmit={handleSubmit}>
-      {error && <div className="error-message">{error}</div>}
+    <form onSubmit={handleSubmit} className="space-y-3">
+      {error && <div className="text-rose-400">{error}</div>}
 
-      <div className="form-group">
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Add a comment..."
-          rows="3"
-          disabled={loading}
-        />
+      <textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="Add a comment..."
+        rows="3"
+        disabled={loading}
+        className="w-full px-3 py-2 rounded-md bg-slate-700/30 border border-slate-600/40 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={loading || !content.trim()}
+          className="px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold disabled:opacity-60"
+        >
+          {loading ? 'Posting...' : 'Post Comment'}
+        </button>
       </div>
-
-      <button type="submit" className="btn-primary" disabled={loading || !content.trim()}>
-        {loading ? 'Posting...' : 'Post Comment'}
-      </button>
     </form>
   );
 }

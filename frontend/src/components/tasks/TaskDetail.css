@@ -191,12 +191,12 @@
 
 .btn {
   padding: 10px 20px;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  border: none;
-  transition: all 0.2s;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
 }
 
 .btn:disabled {
@@ -205,23 +205,23 @@
 }
 
 .btn-primary {
-  background: #3b82f6;
-  color: white;
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.1);
+  color: #dbeafe;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #2563eb;
+  background: rgba(59, 130, 246, 0.18);
 }
 
 .btn-danger {
-  background: white;
-  color: #ef4444;
-  border: 1px solid #ef4444;
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fee2e2;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #ef4444;
-  color: white;
+  background: rgba(239, 68, 68, 0.18);
 }
 
 @media (max-width: 768px) {
