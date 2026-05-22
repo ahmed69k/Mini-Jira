@@ -4,6 +4,7 @@ const authMiddleware = require("../middleware/auth");
 const {
   createComment,
   getCommentsByTaskId,
+  deleteComment
 } = require("../controllers/comments");
 
 // All routes require authentication
@@ -16,6 +17,6 @@ router.post("/", createComment);
 router.get("/:taskId", getCommentsByTaskId);
 
 // DELETE /api/comments/:id - Delete comment by id
-router.delete("/comments/:id", commentsController.deleteComment);
+router.delete("/comments/:id", deleteComment);
 
 module.exports = router;
