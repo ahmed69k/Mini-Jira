@@ -4,6 +4,7 @@ import Register from './components/auth/Register';
 import KanbanBoard from './components/tasks/KanbanBoard';
 import ManagerDashboard from './components/dashboard/ManagerDashboard';
 import ProjectsPage from './components/projects/ProjectsPage';
+import Navbar from './components/common/Navbar';
 
 function App() {
   return (
@@ -28,29 +29,10 @@ function AppContent() {
   };
 
   return (
-    <div className="app">
-      {!isAuthPage && isAuthenticated() && (
-        <header className="app-header">
-          <div className="container">
-            <h1 className="app-title">Mini Jira</h1>
-            <nav className="app-nav">
-              <button
-                className="btn-logout"
-                onClick={() => {
-                  localStorage.removeItem('idToken');
-                  localStorage.removeItem('accessToken');
-                  localStorage.removeItem('user');
-                  window.location.href = '/login';
-                }}
-              >
-                Logout
-              </button>
-            </nav>
-          </div>
-        </header>
-      )}
+    <div className="app min-h-screen bg-slate-950">
+      {!isAuthPage && isAuthenticated() && <Navbar />}
 
-      <main className="app-main">
+      <main className={isAuthPage ? '' : ''}>
         <Routes>
           <Route
             path="/"
@@ -75,6 +57,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <KanbanBoard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <ProjectsPage />
               </ProtectedRoute>
             }
           />

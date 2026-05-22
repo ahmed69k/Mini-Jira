@@ -1,6 +1,4 @@
 
-import './TeamStats.css';
-
 const STATUS_LABELS = {
   TODO: 'To Do',
   IN_PROGRESS: 'In Progress',
@@ -24,8 +22,8 @@ const PRIORITY_COLORS = {
 const TeamStats = ({ tasks, teamId }) => {
   if (!tasks || tasks.length === 0) {
     return (
-      <div className="team-stats-empty">
-        <p>No tasks found{teamId !== 'all' ? ` for this team` : ''}.</p>
+      <div className="py-10 px-5 text-center text-slate-400 text-sm">
+        <p>No tasks assigned to this team yet</p>
       </div>
     );
   }
@@ -52,59 +50,59 @@ const TeamStats = ({ tasks, teamId }) => {
   const completionRate = total > 0 ? Math.round((statusCounts.DONE / total) * 100) : 0;
 
   return (
-    <div className="team-stats">
+    <div className="flex flex-col gap-6">
       {/* Summary cards */}
-      <div className="stats-summary">
-        <div className="stat-card">
-          <span className="stat-number">{total}</span>
-          <span className="stat-label">Total Tasks</span>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="backdrop-blur-md bg-slate-700/20 border border-slate-700/50 rounded-lg p-5 flex flex-col gap-2 transition-all hover:bg-slate-700/30 hover:border-slate-600/50 hover:shadow-lg">
+          <span className="text-4xl font-bold text-slate-100">{total}</span>
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Tasks</span>
         </div>
-        <div className="stat-card">
-          <span className="stat-number" style={{ color: '#10b981' }}>{completionRate}%</span>
-          <span className="stat-label">Completion</span>
+        <div className="backdrop-blur-md bg-slate-700/20 border border-slate-700/50 rounded-lg p-5 flex flex-col gap-2 transition-all hover:bg-slate-700/30 hover:border-slate-600/50 hover:shadow-lg">
+          <span className="text-4xl font-bold text-teal-400">{completionRate}%</span>
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Completed</span>
         </div>
-        <div className="stat-card">
-          <span className="stat-number" style={{ color: overdue > 0 ? '#ef4444' : '#10b981' }}>
+        <div className="backdrop-blur-md bg-slate-700/20 border border-slate-700/50 rounded-lg p-5 flex flex-col gap-2 transition-all hover:bg-slate-700/30 hover:border-slate-600/50 hover:shadow-lg">
+          <span className={`text-4xl font-bold ${overdue > 0 ? 'text-rose-400' : 'text-teal-400'}`}>
             {overdue}
           </span>
-          <span className="stat-label">Overdue</span>
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Overdue</span>
         </div>
       </div>
 
       {/* Status breakdown */}
-      <div className="stats-section">
-        <h3 className="stats-section-title">By Status</h3>
-        <div className="stats-bars">
+      <div className="flex flex-col gap-3">
+        <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Status Distribution</h3>
+        <div className="flex flex-col gap-3">
           {Object.entries(statusCounts).map(([status, count]) => (
-            <div key={status} className="stat-bar-row">
-              <span className="stat-bar-label">{STATUS_LABELS[status]}</span>
-              <div className="stat-bar-track">
+            <div key={status} className="flex items-center gap-3">
+              <span className="text-xs text-slate-400 w-20 flex-shrink-0 font-medium">{STATUS_LABELS[status]}</span>
+              <div className="flex-1 h-2 bg-slate-700/50 rounded-full overflow-hidden border border-slate-700/30">
                 <div
-                  className="stat-bar-fill"
+                  className="h-full rounded-full transition-all duration-400"
                   style={{
                     width: total > 0 ? `${(count / total) * 100}%` : '0%',
                     backgroundColor: STATUS_COLORS[status],
                   }}
                 />
               </div>
-              <span className="stat-bar-count">{count}</span>
+              <span className="text-xs font-semibold text-slate-400 w-6 text-right">{count}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Priority breakdown */}
-      <div className="stats-section">
-        <h3 className="stats-section-title">By Priority</h3>
-        <div className="stats-pills">
+      <div className="flex flex-col gap-3">
+        <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Priority Breakdown</h3>
+        <div className="flex gap-3">
           {Object.entries(priorityCounts).map(([priority, count]) => (
             <div
               key={priority}
-              className="priority-pill"
-              style={{ borderColor: PRIORITY_COLORS[priority], color: PRIORITY_COLORS[priority] }}
+              className="flex-1 px-4 py-3 rounded-lg border-2 text-center transition-all hover:shadow-lg"
+              style={{ borderColor: PRIORITY_COLORS[priority] + '60', backgroundColor: PRIORITY_COLORS[priority] + '10'}}
             >
-              <span className="priority-pill-label">{priority}</span>
-              <span className="priority-pill-count">{count}</span>
+              <p className="text-xs uppercase font-semibold text-slate-400">{priority}</p>
+              <p className="text-2xl font-bold" style={{ color: PRIORITY_COLORS[priority]}}>{count}</p>
             </div>
           ))}
         </div>
