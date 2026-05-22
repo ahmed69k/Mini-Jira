@@ -4,7 +4,7 @@ const authMiddleware = require("../middleware/auth")
 
 const router = express.Router()
 
-router.get('/', authMiddleware, UserController.getAllUsers);
+router.get('/users', authMiddleware, UserController.getAllUsers);
 router.get('/me', authMiddleware, UserController.getUserProfile);
 router.get('/users/team/:teamId', authMiddleware, UserController.getTeamMembers);
 router.put('/update-me', authMiddleware, UserController.updateUserProfile);

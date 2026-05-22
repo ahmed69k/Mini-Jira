@@ -4,55 +4,113 @@ import api from '../../services/api';
 const inputClass =
   'w-full px-3 py-2 rounded-md bg-slate-700/30 border border-slate-600/40 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm';
 
-const TaskForm = ({ onSuccess, onCancel, initialData = null }) => {
+const TaskForm = ({
+  onSuccess,
+  onCancel,
+  initialData = null,
+  teams = [],
+}) => {
   const [formData, setFormData] = useState({
-    title:       initialData?.title       || '',
+    title: initialData?.title || '',
     description: initialData?.description || '',
-    priority:    initialData?.priority    || 'MEDIUM',
-    deadline:    initialData?.deadline    || '',
-    assigneeId:  initialData?.assigneeId  || '',
-    teamId:      initialData?.teamId      || 'frontend',
-    projectId:   initialData?.projectId   || 'project-1',
+    priority: initialData?.priority || 'MEDIUM',
+    deadline: initialData?.deadline || '',
+    assigneeId: initialData?.assigneeId || '',
+    teamId: initialData?.teamId || '',
+    projectId: initialData?.projectId || '',
   });
-  const [loading, setLoading]           = useState(false);
-  const [error, setError]               = useState(null);
-  const [users, setUsers]               = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
 
-  useEffect(() => { fetchUsers(); }, []);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+
+  // ---------------- FETCH USERS ----------------
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const fetchUsers = async () => {
     try {
       setLoadingUsers(true);
-      const res = await api.get('/users');
+      const res = await api.get('/api/users');
       setUsers(res.data);
-    } catch {
-      try {
-        const alt = await api.get('/');
-        setUsers(alt.data);
-      } catch (e) {
-        console.error('Error fetching users:', e);
-      }
+    } catch (e) {
+      console.error('Error fetching users:', e);
     } finally {
       setLoadingUsers(false);
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  // ---------------- FETCH PROJECTS ----------------
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      setLoadingProjects(true);
+      const res = await api.get('/api/projects');
+      setProjects(res.data || []);
+    } catch (e) {
+      console.error('Error fetching projects:', e);
+    } finally {
+      setLoadingProjects(false);
+    }
   };
 
+  // ---------------- FILTER USERS BY TEAM ----------------
+  useEffect(() => {
+    if (!formData.teamId) {
+      setFilteredUsers([]);
+      return;
+    }
+
+    const teamUsers = users.filter(
+      (u) => String(u.teamId) === String(formData.teamId)
+    );
+
+    setFilteredUsers(teamUsers);
+  }, [formData.teamId, users]);
+
+  // ---------------- HANDLE CHANGE ----------------
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleTeamChange = (e) => {
+    const value = e.target.value;
+
+    setFormData((prev) => ({
+      ...prev,
+      teamId: value,
+      assigneeId: '',
+    }));
+  };
+
+  // ---------------- SUBMIT ----------------
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     setLoading(true);
     setError(null);
+
     try {
       if (initialData) {
         await api.put(`/api/tasks/${initialData.taskId}`, formData);
       } else {
         await api.post('/api/tasks', formData);
       }
+
       onSuccess();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save task');
@@ -62,7 +120,8 @@ const TaskForm = ({ onSuccess, onCancel, initialData = null }) => {
   };
 
   return (
-    <div className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5">
+
       <h2 className="text-lg font-semibold text-slate-100">
         {initialData ? 'Edit Task' : 'Create New Task'}
       </h2>
@@ -74,91 +133,145 @@ const TaskForm = ({ onSuccess, onCancel, initialData = null }) => {
       )}
 
       <div className="space-y-4">
+
+        {/* TITLE */}
         <div>
           <label className="block text-sm text-slate-300 mb-1">Title *</label>
-          <input name="title" type="text" value={formData.title} onChange={handleChange} required placeholder="Enter task title" className={inputClass} />
+          <input
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            className={inputClass}
+            required
+          />
         </div>
 
+        {/* DESCRIPTION */}
         <div>
           <label className="block text-sm text-slate-300 mb-1">Description *</label>
-          <textarea name="description" value={formData.description} onChange={handleChange} required placeholder="Enter task description" rows={4} className={inputClass} />
+          <textarea
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            className={inputClass}
+            rows={4}
+            required
+          />
         </div>
 
+        {/* PRIORITY + DEADLINE */}
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-slate-300 mb-1">Priority *</label>
-            <select name="priority" value={formData.priority} onChange={handleChange} required className={inputClass}>
-              <option value="LOW">Low</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-slate-300 mb-1">Deadline *</label>
-            <input name="deadline" type="date" value={formData.deadline} onChange={handleChange} required className={inputClass} />
-          </div>
+          <select
+            name="priority"
+            value={formData.priority}
+            onChange={handleChange}
+            className={inputClass}
+          >
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+          </select>
+
+          <input
+            type="date"
+            name="deadline"
+            value={formData.deadline}
+            onChange={handleChange}
+            className={inputClass}
+          />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-slate-300 mb-1">Team *</label>
-            <select
-              name="teamId"
-              value={formData.teamId}
-              onChange={(e) => { handleChange(e); setFormData((p) => ({ ...p, assigneeId: '' })); }}
-              required
-              className={inputClass}
-            >
-              <option value="frontend">Frontend</option>
-              <option value="backend">Backend</option>
-              <option value="qa">QA</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-slate-300 mb-1">Project *</label>
-            <input name="projectId" type="text" value={formData.projectId} onChange={handleChange} required placeholder="e.g., project-1" className={inputClass} />
-          </div>
-        </div>
-
+        {/* TEAM */}
         <div>
-          <label className="block text-sm text-slate-300 mb-1">Assign To *</label>
-          {loadingUsers ? (
-            <div className={`${inputClass} text-slate-500`}>Loading users…</div>
+          <label className="block text-sm text-slate-300 mb-1">Team *</label>
+
+          <select
+            name="teamId"
+            value={formData.teamId}
+            onChange={handleTeamChange}
+            className={inputClass}
+            required
+          >
+            <option value="">Select a team</option>
+
+            {teams.map((team) => (
+              <option key={team.id || team.teamId} value={team.name}>
+                {team.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* PROJECT (NEW DROPDOWN) */}
+        <div>
+          <label className="block text-sm text-slate-300 mb-1">Project *</label>
+
+          {loadingProjects ? (
+            <div className={inputClass}>Loading projects...</div>
           ) : (
-            <select name="assigneeId" value={formData.assigneeId} onChange={handleChange} required className={inputClass}>
-              <option value="">Select a user</option>
-              {users
-                .filter((u) => u.teamId === formData.teamId)
-                .map((u) => (
-                  <option key={u.userId} value={u.userId}>
-                    {u.name} ({u.email}) — {u.role}
-                  </option>
-                ))}
+            <select
+              name="projectId"
+              value={formData.projectId}
+              onChange={handleChange}
+              className={inputClass}
+              required
+            >
+              <option value="">Select a project</option>
+
+              {projects.map((p) => (
+                <option key={p.projectId} value={p.title}>
+                  {p.title} ({p.teamName || p.teamId})
+                </option>
+              ))}
             </select>
           )}
-          <p className="text-xs text-slate-500 mt-1">Only showing users from the selected team</p>
         </div>
+
+        {/* ASSIGNEE */}
+        <div>
+          <label className="block text-sm text-slate-300 mb-1">Assign To *</label>
+
+          {loadingUsers ? (
+            <div className={inputClass}>Loading users...</div>
+          ) : (
+            <select
+              name="assigneeId"
+              value={formData.assigneeId}
+              onChange={handleChange}
+              className={inputClass}
+              disabled={!formData.teamId}
+              required
+            >
+              <option value="">
+                {!formData.teamId
+                  ? 'Select a team first'
+                  : filteredUsers.length === 0
+                  ? 'No users in this team'
+                  : 'Select a user'}
+              </option>
+
+              {filteredUsers.map((u) => (
+                <option key={u.userId} value={u.userId}>
+                  {u.name} ({u.email})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
       </div>
 
-      <div className="flex items-center gap-3 pt-2 border-t border-slate-700/50">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={loading}
-          className="px-4 py-2 rounded-lg bg-slate-700/50 text-slate-200 text-sm font-semibold hover:bg-slate-700 transition disabled:opacity-50"
-        >
+      {/* ACTIONS */}
+      <div className="flex gap-3 pt-3 border-t border-slate-700/50">
+        <button type="button" onClick={onCancel} className="px-4 py-2 bg-slate-700 text-white rounded">
           Cancel
         </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={loading}
-          className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 transition disabled:opacity-50"
-        >
-          {loading ? 'Saving…' : initialData ? 'Update Task' : 'Create Task'}
+
+        <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded">
+          {initialData ? 'Update' : 'Create'}
         </button>
       </div>
-    </div>
+    </form>
   );
 };
 

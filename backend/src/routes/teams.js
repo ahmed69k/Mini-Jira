@@ -8,7 +8,7 @@ const authMiddleware = require("../middleware/auth")
 router.post("/", authMiddleware, TeamController.createTeam);
 
 // GET ALL TEAMS
-router.get("/", authMiddleware, TeamController.getAllTeams);
+router.get("/", TeamController.getAllTeams);
 
 // GET SINGLE TEAM
 router.get("/:teamId", authMiddleware, TeamController.getTeamById);

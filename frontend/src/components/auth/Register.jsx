@@ -1,30 +1,52 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 
 const Register = () => {
   const navigate = useNavigate();
+
   const [step, setStep] = useState(1);
+  const [teams, setTeams] = useState([]);
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     name: '',
     role: 'employee',
-    teamId: '',
+    teamName: '', // ✅ changed from teamId -> teamName
   });
+
   const [confirmationCode, setConfirmationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+  // ---------------- FETCH TEAMS ----------------
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const res = await axios.get(`${API_URL}/api/teams`);
+        setTeams(res.data || []);
+      } catch (err) {
+        console.error('Failed to load teams:', err);
+      }
+    };
+
+    fetchTeams();
+  }, []);
+
+  // ---------------- HANDLE INPUT ----------------
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
 
+  // ---------------- REGISTER ----------------
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -32,18 +54,24 @@ const Register = () => {
 
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      await axios.post(`${API_URL}/api/register`, formData);
 
-      setSuccess('Registration successful! Please check your email for the confirmation code.');
+      await axios.post(`${API_URL}/api/register`, {
+        ...formData,
+        teamId: formData.teamName, // ✅ ensure sending name
+      });
+
+      setSuccess('Registration successful! Check your email.');
       setStep(2);
     } catch (err) {
-      console.error('Registration error:', err);
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setError(
+        err.response?.data?.message || 'Registration failed. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // ---------------- CONFIRM EMAIL ----------------
   const handleConfirm = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -51,16 +79,18 @@ const Register = () => {
 
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
       await axios.post(`${API_URL}/api/auth/confirm`, {
         email: formData.email,
         code: confirmationCode,
       });
 
-      setSuccess('Email confirmed! Redirecting to login...');
+      setSuccess('Email confirmed! Redirecting...');
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
-      console.error('Confirmation error:', err);
-      setError(err.response?.data?.message || 'Confirmation failed. Please check your code.');
+      setError(
+        err.response?.data?.message || 'Confirmation failed. Try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -72,19 +102,19 @@ const Register = () => {
 
         <div className="backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl p-8">
 
-          {/* Header */}
+          {/* HEADER */}
           <div className="text-center mb-6">
             <h1 className="text-3xl font-bold text-white">
               {step === 1 ? 'Create Account' : 'Confirm Email'}
             </h1>
             <p className="text-slate-300 mt-2">
               {step === 1
-                ? 'Sign up for a new Mini Jira account'
+                ? 'Sign up for Mini Jira'
                 : 'Enter the confirmation code sent to your email'}
             </p>
           </div>
 
-          {/* Messages */}
+          {/* MESSAGES */}
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/40 text-red-200 text-sm">
               {error}
@@ -108,7 +138,7 @@ const Register = () => {
                 onChange={handleChange}
                 placeholder="Full Name"
                 required
-                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white"
               />
 
               <input
@@ -116,9 +146,9 @@ const Register = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="Email Address"
+                placeholder="Email"
                 required
-                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white"
               />
 
               <input
@@ -129,33 +159,40 @@ const Register = () => {
                 placeholder="Password"
                 minLength={8}
                 required
-                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white"
               />
 
               <select
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white"
               >
                 <option value="employee">Employee</option>
                 <option value="manager">Manager</option>
               </select>
 
-              <input
-                type="text"
-                name="teamId"
-                value={formData.teamId}
+              {/* ✅ NEW TEAM DROPDOWN */}
+              <select
+                name="teamName"
+                value={formData.teamName}
                 onChange={handleChange}
-                placeholder="Team (e.g. frontend)"
                 required
-                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
+                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white"
+              >
+                <option value="">Select Team</option>
+
+                {teams.map((team) => (
+                  <option key={team.id || team.teamId} value={team.name}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition disabled:opacity-60"
+                className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold"
               >
                 {loading ? 'Creating account...' : 'Create Account'}
               </button>
@@ -168,15 +205,15 @@ const Register = () => {
                 type="text"
                 value={confirmationCode}
                 onChange={(e) => setConfirmationCode(e.target.value)}
-                placeholder="Enter confirmation code"
+                placeholder="Confirmation code"
                 required
-                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white"
               />
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition disabled:opacity-60"
+                className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold"
               >
                 {loading ? 'Confirming...' : 'Confirm Email'}
               </button>
@@ -184,18 +221,17 @@ const Register = () => {
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                disabled={loading}
-                className="w-full py-3 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/20 transition"
+                className="w-full py-3 rounded-lg bg-white/10 border border-white/20 text-white"
               >
                 Back
               </button>
             </form>
           )}
 
-          {/* Footer */}
+          {/* FOOTER */}
           <div className="mt-6 text-center text-sm text-slate-300">
             Already have an account?{' '}
-            <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-medium">
+            <Link to="/login" className="text-indigo-400">
               Sign in
             </Link>
           </div>
