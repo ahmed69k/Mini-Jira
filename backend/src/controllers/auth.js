@@ -27,6 +27,14 @@ const AuthController = {
                     {
                         Name: "name",
                         Value: name
+                    },
+                    {
+                        Name: "custom:role",
+                        Value: role
+                    },
+                    {
+                        Name: "custom:teamId",
+                        Value: teamId
                     }
                 ]
             }))
@@ -37,6 +45,8 @@ const AuthController = {
                 name,
                 role,
                 teamId,
+                subscriptionStatus: "none",
+                subscriptionArn: null,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             }

@@ -1,52 +1,77 @@
 import { useState } from 'react';
-import { authAPI } from '../../services/auth';
-import './Login.css';
+import { useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
+import './Auth.css';
 
-export default function Login({ onLoginSuccess }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+const Login = () => {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
   const [loading, setLoading] = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
-  const [teamId, setTeamId] = useState('');
+  const [error, setError] = useState(null);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      if (!email || !password) {
-        setError('Email and password are required');
-        setLoading(false);
-        return;
-      }
-
-      await authAPI.login(email, password);
-      onLoginSuccess();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
-  const handleRegister = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setError(null);
 
     try {
-      if (!email || !password || !teamId) {
-        setError('Email, password, and team ID are required');
-        setLoading(false);
-        return;
-      }
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await axios.post(`${API_URL}/login`, formData);
 
-      await authAPI.register(email, password, teamId);
-      onLoginSuccess();
+      const { idToken, accessToken } = response.data;
+
+      // Store tokens
+      localStorage.setItem('idToken', idToken);
+      localStorage.setItem('accessToken', accessToken);
+
+      // Decode JWT to get user info (basic decode without verification)
+      const base64Url = idToken.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const user = JSON.parse(jsonPayload);
+
+      // Fetch full user profile from backend to get teamId
+      const profileResponse = await axios.get(`${API_URL}/me`, {
+        headers: {
+          Authorization: `Bearer ${idToken}`
+        }
+      });
+
+      const userProfile = profileResponse.data.user;
+
+      // Store user info with teamId from database
+      localStorage.setItem('user', JSON.stringify({
+        userId: user.sub,
+        email: user.email,
+        name: user.name,
+        role: user['custom:role'] || 'employee',
+        teamId: userProfile.teamId,
+      }));
+
+      // Redirect to tasks
+      navigate('/tasks');
     } catch (err) {
-      setError(err.message);
+      console.error('Login error:', err);
+      setError(
+        err.response?.data?.message ||
+        'Login failed. Please check your credentials.'
+      );
     } finally {
       setLoading(false);
     }
@@ -56,91 +81,67 @@ export default function Login({ onLoginSuccess }) {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <h1>Mini-Jira</h1>
-          <p>Task Management System</p>
+          <h1 className="auth-title">Welcome Back</h1>
+          <p className="auth-subtitle">Sign in to your Mini Jira account</p>
         </div>
 
-        <form onSubmit={showRegister ? handleRegister : handleLogin} className="auth-form">
-          <h2>{showRegister ? 'Create Account' : 'Sign In'}</h2>
+        {error && <div className="auth-error">{error}</div>}
 
-          {error && <div className="error-message">{error}</div>}
-
+        <form className="auth-form" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="email">Email Address</label>
+            <label htmlFor="email" className="form-label">
+              Email Address
+            </label>
             <input
-              id="email"
               type="email"
-              placeholder="your@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
               required
+              className="form-input"
+              placeholder="you@example.com"
+              autoComplete="email"
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password" className="form-label">
+              Password
+            </label>
             <input
-              id="password"
               type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
+              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
               required
+              className="form-input"
+              placeholder="••••••••"
+              autoComplete="current-password"
             />
           </div>
 
-          {showRegister && (
-            <div className="form-group">
-              <label htmlFor="teamId">Team ID</label>
-              <input
-                id="teamId"
-                type="text"
-                placeholder="e.g., team-123"
-                value={teamId}
-                onChange={(e) => setTeamId(e.target.value)}
-                disabled={loading}
-                required
-              />
-              <small>The unique identifier for your team in the organization</small>
-            </div>
-          )}
-
-          <button type="submit" className="btn-submit" disabled={loading}>
-            {loading ? (showRegister ? 'Creating Account...' : 'Signing In...') : (showRegister ? 'Sign Up' : 'Sign In')}
+          <button
+            type="submit"
+            className="btn btn-primary btn-full"
+            disabled={loading}
+          >
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
         <div className="auth-footer">
-          <p>
-            {showRegister ? 'Already have an account?' : "Don't have an account?"}
-            {' '}
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => {
-                setShowRegister(!showRegister);
-                setError('');
-                setEmail('');
-                setPassword('');
-                setTeamId('');
-              }}
-            >
-              {showRegister ? 'Sign In' : 'Sign Up'}
-            </button>
-          </p>
-        </div>
-
-        <div className="auth-info">
-          <h3>Demo Credentials:</h3>
-          <p><strong>Email:</strong> manager@company.com</p>
-          <p><strong>Password:</strong> TempPassword123!</p>
-          <p style={{ fontSize: '0.85rem', marginTop: '0.5rem', color: '#666' }}>
-            (Create an account or use credentials from your organization)
+          <p className="auth-footer-text">
+            Don't have an account?{' '}
+            <Link to="/register" className="auth-link">
+              Sign up
+            </Link>
           </p>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default Login;
