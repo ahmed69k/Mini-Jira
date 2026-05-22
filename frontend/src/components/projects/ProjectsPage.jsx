@@ -1,8 +1,10 @@
 // projects/ProjectsPage.jsx
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+
 import ProjectCard from './ProjectCard';
 import ProjectForm from './ProjectForm';
+import ProjectDetails from './ProjectDetails';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -125,6 +127,9 @@ const ProjectsPage = () => {
   const [editingProject, setEditingProject] =
     useState(null);
 
+  const [selectedProject, setSelectedProject] =
+    useState(null);
+
   const [deletingProject, setDeletingProject] =
     useState(null);
 
@@ -222,6 +227,7 @@ const ProjectsPage = () => {
   const handleFormSuccess = () => {
     setShowCreateModal(false);
     setEditingProject(null);
+
     fetchProjects();
   };
 
@@ -311,6 +317,15 @@ const ProjectsPage = () => {
                   <ProjectCard
                     key={project.projectId}
                     project={project}
+                    onViewDetails={(project) => {
+                      setSelectedProject(project);
+                    }}
+                    onEdit={(project) => {
+                      setEditingProject(project);
+                    }}
+                    onDelete={(project) => {
+                      setDeletingProject(project);
+                    }}
                   />
                 )
               )}
@@ -353,6 +368,21 @@ const ProjectsPage = () => {
           onSuccess={handleFormSuccess}
           onCancel={() =>
             setEditingProject(null)
+          }
+        />
+      </Modal>
+
+      {/* Details */}
+      <Modal
+        show={Boolean(selectedProject)}
+        onClose={() =>
+          setSelectedProject(null)
+        }
+      >
+        <ProjectDetails
+          project={selectedProject}
+          onClose={() =>
+            setSelectedProject(null)
           }
         />
       </Modal>
