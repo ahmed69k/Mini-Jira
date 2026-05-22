@@ -8,14 +8,14 @@
 
 const TeamFilter = ({ selectedTeam, onTeamChange }) => {
   return (
-    <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg w-fit flex-wrap sm:flex-nowrap sm:w-fit">
+    <div className="flex items-center gap-2 p-1.5 bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-lg w-full flex-wrap">
       {TEAMS.map((team) => (
         <button
           key={team.id}
-          className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+          className={`px-5 py-2.5 rounded-lg text-base font-semibold whitespace-nowrap transition-all duration-200 text-center ${
             selectedTeam === team.id
-              ? 'bg-white text-gray-900 font-semibold shadow-sm'
-              : 'bg-transparent text-gray-500 hover:text-gray-900 hover:bg-white hover:shadow-sm'
+              ? 'bg-indigo-900/60 text-indigo-100 border border-indigo-600/50 shadow-lg shadow-indigo-500/20'
+              : 'bg-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-700/30 border border-transparent'
           }`}
           onClick={() => onTeamChange(team.id)}
         >
