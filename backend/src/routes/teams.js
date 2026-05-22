@@ -5,21 +5,21 @@ const TeamController = require("../controllers/teams");
 const authMiddleware = require("../middleware/auth")
 
 // CREATE TEAM
-router.post("/teams", authMiddleware, TeamController.createTeam);
+router.post("/", authMiddleware, TeamController.createTeam);
 
 // GET ALL TEAMS
-router.get("/teams", authMiddleware, TeamController.getAllTeams);
+router.get("/", authMiddleware, TeamController.getAllTeams);
 
 // GET SINGLE TEAM
-router.get("/teams/:teamId", authMiddleware, TeamController.getTeamById);
+router.get("/:teamId", authMiddleware, TeamController.getTeamById);
 
 // UPDATE TEAM
-router.put("/teams/:teamId", authMiddleware, TeamController.updateTeam);
+router.put("/:teamId", authMiddleware, TeamController.updateTeam);
 
 // DELETE TEAM
-router.delete("/teams/:teamId", authMiddleware, TeamController.deleteTeam);
+router.delete("/:teamId", authMiddleware, TeamController.deleteTeam);
 
 // GET TEAM MEMBERS
-router.get("/teams/:teamId/members", authMiddleware, TeamController.getTeamMembers);
+router.get("/:teamId/members", authMiddleware, TeamController.getTeamMembers);
 
 module.exports = router;
