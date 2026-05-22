@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import KanbanBoard from './components/tasks/KanbanBoard';
-import './App.css';
 import ManagerDashboard from './components/dashboard/ManagerDashboard';
 
 function App() {

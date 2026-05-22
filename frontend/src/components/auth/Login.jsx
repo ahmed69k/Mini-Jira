@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import './Auth.css';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -27,15 +26,13 @@ const Login = () => {
 
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const response = await axios.post(`${API_URL}/login`, formData);
+      const response = await axios.post(`${API_URL}/api/login`, formData);
 
       const { idToken, accessToken } = response.data;
 
-      // Store tokens
       localStorage.setItem('idToken', idToken);
       localStorage.setItem('accessToken', accessToken);
 
-      // Decode JWT to get user info (basic decode without verification)
       const base64Url = idToken.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const jsonPayload = decodeURIComponent(
@@ -46,31 +43,31 @@ const Login = () => {
       );
       const user = JSON.parse(jsonPayload);
 
-      // Fetch full user profile from backend to get teamId
-      const profileResponse = await axios.get(`${API_URL}/me`, {
+      const profileResponse = await axios.get(`${API_URL}/api/me`, {
         headers: {
-          Authorization: `Bearer ${idToken}`
-        }
+          Authorization: `Bearer ${idToken}`,
+        },
       });
 
       const userProfile = profileResponse.data.user;
 
-      // Store user info with teamId from database
-      localStorage.setItem('user', JSON.stringify({
-        userId: user.sub,
-        email: user.email,
-        name: user.name,
-        role: user['custom:role'] || 'employee',
-        teamId: userProfile.teamId,
-      }));
+      localStorage.setItem(
+        'user',
+        JSON.stringify({
+          userId: user.sub,
+          email: user.email,
+          name: user.name,
+          role: user['custom:role'] || 'employee',
+          teamId: userProfile.teamId,
+        })
+      );
 
-      // Redirect to tasks
       navigate('/tasks');
     } catch (err) {
       console.error('Login error:', err);
       setError(
         err.response?.data?.message ||
-        'Login failed. Please check your credentials.'
+          'Login failed. Please check your credentials.'
       );
     } finally {
       setLoading(false);
@@ -78,66 +75,80 @@ const Login = () => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1 className="auth-title">Welcome Back</h1>
-          <p className="auth-subtitle">Sign in to your Mini Jira account</p>
-        </div>
-
-        {error && <div className="auth-error">{error}</div>}
-
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">
-              Email Address
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className="form-input"
-              placeholder="you@example.com"
-              autoComplete="email"
-            />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4">
+      <div className="w-full max-w-md">
+        <div className="backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl p-8">
+          
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-white">Welcome Back</h1>
+            <p className="text-slate-300 mt-2">
+              Sign in to your Mini Jira account
+            </p>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="form-input"
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
-          </div>
+          {/* Error */}
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/40 text-red-200 text-sm">
+              {error}
+            </div>
+          )}
 
-          <button
-            type="submit"
-            className="btn btn-primary btn-full"
-            disabled={loading}
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+          {/* Form */}
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            <div>
+              <label className="block text-sm text-slate-300 mb-1">
+                Email Address
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                placeholder="you@example.com"
+                autoComplete="email"
+                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+              />
+            </div>
 
-        <div className="auth-footer">
-          <p className="auth-footer-text">
-            Don't have an account?{' '}
-            <Link to="/register" className="auth-link">
+            <div>
+              <label className="block text-sm text-slate-300 mb-1">
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                placeholder="••••••••"
+                autoComplete="current-password"
+                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-lg font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition disabled:opacity-60 disabled:cursor-not-allowed shadow-lg"
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+
+          {/* Footer */}
+          <div className="mt-6 text-center text-sm text-slate-300">
+            Don’t have an account?{' '}
+            <Link
+              to="/register"
+              className="text-indigo-400 hover:text-indigo-300 font-medium"
+            >
               Sign up
             </Link>
-          </p>
+          </div>
         </div>
       </div>
     </div>
