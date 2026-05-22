@@ -30,27 +30,10 @@ const Navbar = () => {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      const API_URL =
-        import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
-      await axios.post(
-        `${API_URL}/api/logout`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('idToken')}`,
-          },
-        }
-      );
-    } catch (err) {
-      console.error('Logout error:', err);
-    } finally {
       localStorage.removeItem('idToken');
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
       navigate('/login');
-    }
   };
 
   return (

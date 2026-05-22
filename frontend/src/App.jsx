@@ -16,25 +16,24 @@ function App() {
 
 function AppContent() {
   const location = useLocation();
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
-  // Check if user is logged in
+  const isAuthPage =
+    location.pathname === '/login' || location.pathname === '/register';
+
   const isAuthenticated = () => {
     return !!localStorage.getItem('idToken');
   };
 
-  // Protected route wrapper
   const ProtectedRoute = ({ children }) => {
-    return isAuthenticated() ? children : <Navigate to="/login" />;
+    return isAuthenticated() ? children : <Navigate to="/login" replace />;
   };
 
-  //Role based auth
   const AllowedRoles = ({ children, roles }) => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userRole = user?.role;
 
     if (!roles.includes(userRole)) {
-      return <Navigate to="/tasks" />;
+      return <Navigate to="/tasks" replace />;
     }
 
     return children;
@@ -44,26 +43,41 @@ function AppContent() {
     <div className="app min-h-screen bg-slate-950">
       {!isAuthPage && isAuthenticated() && <Navbar />}
 
-      <main className={isAuthPage ? '' : ''}>
+      <main>
         <Routes>
           <Route
             path="/"
             element={
-              isAuthenticated() ? <Navigate to="/tasks" /> : <Navigate to="/login" />
+              isAuthenticated() ? (
+                <Navigate to="/tasks" replace />
+              ) : (
+                <Navigate to="/login" replace />
+              )
             }
           />
+
           <Route
             path="/login"
             element={
-              isAuthenticated() ? <Navigate to="/tasks" /> : <Login />
+              isAuthenticated() ? (
+                <Navigate to="/tasks" replace />
+              ) : (
+                <Login />
+              )
             }
           />
+
           <Route
             path="/register"
             element={
-              isAuthenticated() ? <Navigate to="/tasks" /> : <Register />
+              isAuthenticated() ? (
+                <Navigate to="/tasks" replace />
+              ) : (
+                <Register />
+              )
             }
           />
+
           <Route
             path="/tasks"
             element={
@@ -72,6 +86,7 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/projects"
             element={
@@ -80,15 +95,22 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <AllowedRoles roles={["manager"]}>
-                  <ManagerDashboard></ManagerDashboard>
+                <AllowedRoles roles={['manager']}>
+                  <ManagerDashboard />
                 </AllowedRoles>
               </ProtectedRoute>
             }
+          />
+
+          {/* fallback route */}
+          <Route
+            path="*"
+            element={<Navigate to="/login" replace />}
           />
         </Routes>
       </main>
