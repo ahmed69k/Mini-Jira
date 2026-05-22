@@ -19,8 +19,8 @@ app.get("/health", (req, res) => {
 });
 
 // Register routes
-app.use('', authRoutes)
-app.use('',userRoutes)
+app.use('/api', authRoutes)
+app.use('/api',userRoutes)
 app.use("/api/tasks", tasksRoutes);
 app.use("/api/projects", projectsRoutes);
 app.use("/api/comments", commentsRoutes);
