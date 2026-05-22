@@ -66,10 +66,6 @@ const ProjectForm = ({ initialData = null, onSuccess, onCancel }) => {
       errors.title = 'Title must be at least 3 characters.';
     }
 
-    if (!formData.teamId) {
-      errors.teamId = 'Team selection is required.';
-    }
-
     if (formData.description.length > 500) {
       errors.description =
         'Description must be under 500 characters.';
@@ -103,7 +99,7 @@ const ProjectForm = ({ initialData = null, onSuccess, onCancel }) => {
       const payload = {
         title: formData.title.trim(),
         description: formData.description.trim(),
-        teamId: formData.teamId,
+        teamId: formData.status,
       };
 
       if (isEditMode) {
