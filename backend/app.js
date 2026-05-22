@@ -8,6 +8,7 @@ const projectsRoutes = require("./src/routes/projects");
 const commentsRoutes = require("./src/routes/comments");
 const uploadsRoutes = require("./src/routes/uploads");
 const userRoutes = require('./src/routes/user')
+const teamsRoutes = require('./src/routes/teams')
 
 const app = express();
 app.use(cors());
@@ -25,6 +26,7 @@ app.use("/api/tasks", tasksRoutes);
 app.use("/api/projects", projectsRoutes);
 app.use("/api/comments", commentsRoutes);
 app.use("/api/uploads", uploadsRoutes);
+app.use("/api/teams", teamsRoutes )
 
 const port = process.env.PORT || 3000;
 app.listen(port,()=>{

@@ -15,4 +15,7 @@ router.post("/", createComment);
 // GET /api/comments/:taskId - Get all comments for a task
 router.get("/:taskId", getCommentsByTaskId);
 
+// DELETE /api/comments/:id - Delete comment by id
+router.delete("/comments/:id", commentsController.deleteComment);
+
 module.exports = router;

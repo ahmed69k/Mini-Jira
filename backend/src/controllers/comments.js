@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
 const dynamodb = require("../config/dynamodb");
-const { PutCommand, QueryCommand, GetCommand } = require("@aws-sdk/lib-dynamodb");
+const { PutCommand, QueryCommand, GetCommand, DeleteCommand } = require("@aws-sdk/lib-dynamodb");
 
 const COMMENTS_TABLE = "comments";
 const TASKS_TABLE = "tasks";
@@ -102,3 +102,56 @@ exports.getCommentsByTaskId = async (req, res) => {
     return res.status(500).json({ error: "Failed to get comments" });
   }
 };
+
+exports.deleteComment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "Comment ID is required" });
+    }
+
+    // 1. Get comment first (to validate ownership / existence)
+    const getCommand = new GetCommand({
+      TableName: COMMENTS_TABLE,
+      Key: {
+        commentId: id,
+      },
+    });
+
+    const result = await dynamodb.send(getCommand);
+
+    if (!result.Item) {
+      return res.status(404).json({ error: "Comment not found" });
+    }
+
+    const comment = result.Item;
+
+    // 2. Authorization check (only owner or manager can delete)
+    if (
+      req.user.role === "employee" &&
+      comment.createdBy !== req.user.userId
+    ) {
+      return res.status(403).json({ error: "Forbidden: You cannot delete this comment" });
+    }
+
+    // 3. Delete comment
+    const deleteCommand = new DeleteCommand({
+      TableName: COMMENTS_TABLE,
+      Key: {
+        commentId: id,
+      },
+    });
+
+    await dynamodb.send(deleteCommand);
+
+    return res.status(200).json({
+      message: "Comment deleted successfully",
+    });
+
+  } catch (error) {
+    console.error("Error deleting comment:", error);
+    return res.status(500).json({ error: "Failed to delete comment" });
+  }
+};
+
