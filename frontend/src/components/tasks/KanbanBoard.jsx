@@ -13,6 +13,9 @@ const COLUMNS = [
   { id: 'DONE',        title: 'Done',         color: 'border-emerald-500'},
 ];
 
+const PRIORITY_ORDER = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+
+
 const KanbanBoard = () => {
   const [tasks, setTasks]             = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -71,7 +74,10 @@ const KanbanBoard = () => {
   const handleCloseModal   = ()     => { setIsModalOpen(false); setSelectedTask(null); };
   const handleTaskUpdate   = ()     => { fetchTasks(); handleCloseModal(); };
   const handleTaskCreated  = ()     => { fetchTasks(); setIsFormOpen(false); toast.success('Task created successfully! Email notification sent.'); };
-  const getTasksByStatus   = (status) => tasks.filter((t) => t.status === status);
+  const getTasksByStatus = (status) =>
+  tasks
+    .filter((t) => t.status === status)
+    .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3));
 
   if (loading)
     return (
