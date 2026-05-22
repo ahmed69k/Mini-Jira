@@ -1,10 +1,22 @@
 const dynamodb = require('../config/dynamodb');
 const cognito = require("../config/cognito");
-const {GetCommand, PutCommand, UpdateCommand, DeleteCommand} = require("@aws-sdk/lib-dynamodb");
+const {GetCommand, PutCommand, UpdateCommand, DeleteCommand, ScanCommand} = require("@aws-sdk/lib-dynamodb");
 const { AdminDeleteUserCommand } = require('@aws-sdk/client-cognito-identity-provider');
 const table_name = "users";
 
 const UserController = {
+    getAllUsers: async (req, res) => {
+        try {
+            const command = new ScanCommand({
+                TableName: table_name
+            });
+            const result = await dynamodb.send(command);
+            return res.status(200).json(result.Items || []);
+        } catch (e) {
+            console.log(e);
+            return res.status(500).json({ message: e.message });
+        }
+    },
     getUserProfile: async (req, res) =>{
         try{
             const userId = req.user.sub;
