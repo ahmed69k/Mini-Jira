@@ -3,7 +3,6 @@ import { toast, Toaster } from 'react-hot-toast';
 import api from '../../services/api';
 import TeamFilter from './TeamFilter';
 import TeamStats from './TeamStats';
-import './ManagerDashboard.css';
 
 const ManagerDashboard = () => {
   const [tasks, setTasks] = useState([]);
@@ -46,16 +45,16 @@ const ManagerDashboard = () => {
   return (
     <>
       <Toaster position="top-right" />
-      <div className="dashboard-container">
+      <div className="p-6 min-h-[calc(100vh-80px)] flex flex-col">
 
-        <div className="dashboard-header">
+        <div className="flex justify-between items-start mb-6 md:flex-col md:gap-2">
           <div>
-            <h1 className="dashboard-title">Manager Dashboard</h1>
-            <p className="dashboard-subtitle">
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">Manager Dashboard</h1>
+            <p className="text-sm text-gray-500">
               Welcome back, {user.name || 'Manager'}
             </p>
           </div>
-          <span className="dashboard-date">
+          <span className="text-sm text-gray-500">
             {new Date().toLocaleDateString('en-US', {
               weekday: 'long',
               year: 'numeric',
@@ -65,27 +64,29 @@ const ManagerDashboard = () => {
           </span>
         </div>
 
-        <TeamFilter selectedTeam={selectedTeam} onTeamChange={setSelectedTeam} />
+        <div className="mb-6">
+          <TeamFilter selectedTeam={selectedTeam} onTeamChange={setSelectedTeam} />
+        </div>
 
         {loading ? (
-          <div className="dashboard-loading">
-            <div className="spinner" />
-            <p>Loading dashboard...</p>
+          <div className="flex flex-col items-center justify-center flex-1 gap-4">
+            <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+            <p className="text-gray-500 text-sm">Loading dashboard...</p>
           </div>
         ) : selectedTeam === 'all' ? (
-          <div className="dashboard-grid">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Object.keys(getTasksByTeam()).length === 0 ? (
-              <div className="dashboard-empty">
+              <div className="col-span-full flex items-center justify-center py-16 text-gray-400 text-sm">
                 <p>No tasks found across any team.</p>
               </div>
             ) : (
               Object.entries(getTasksByTeam()).map(([teamId, teamTasks]) => (
-                <div key={teamId} className="dashboard-card">
-                  <div className="dashboard-card-header">
-                    <h2 className="dashboard-card-title">
+                <div key={teamId} className="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+                  <div className="flex justify-between items-center mb-5">
+                    <h2 className="text-base font-semibold text-gray-900">
                       {teamId.charAt(0).toUpperCase() + teamId.slice(1)} Team
                     </h2>
-                    <span className="dashboard-card-count">
+                    <span className="bg-gray-200 text-gray-600 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {teamTasks.length} tasks
                     </span>
                   </div>
@@ -95,13 +96,15 @@ const ManagerDashboard = () => {
             )}
           </div>
         ) : (
-          <div className="dashboard-single">
-            <div className="dashboard-card">
-              <div className="dashboard-card-header">
-                <h2 className="dashboard-card-title">
+          <div className="max-w-2xl">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+              <div className="flex justify-between items-center mb-5">
+                <h2 className="text-base font-semibold text-gray-900">
                   {selectedTeam.charAt(0).toUpperCase() + selectedTeam.slice(1)} Team
                 </h2>
-                <span className="dashboard-card-count">{tasks.length} tasks</span>
+                <span className="bg-gray-200 text-gray-600 px-2.5 py-1 rounded-full text-xs font-semibold">
+                  {tasks.length} tasks
+                </span>
               </div>
               <TeamStats tasks={tasks} />
             </div>
