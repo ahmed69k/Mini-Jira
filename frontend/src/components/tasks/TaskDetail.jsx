@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import api from '../../services/api';
 import ImageUpload from '../uploads/ImageUpload';
+import CommentThread from '../comments/CommentThread';
 import './TaskDetail.css';
 
 const TaskDetail = ({ task, onUpdate, onClose }) => {
@@ -202,6 +203,10 @@ const TaskDetail = ({ task, onUpdate, onClose }) => {
           onImageUpdate={handleImageUpdate}
           onImageDelete={handleImageDelete}
         />
+
+        <div className="detail-section">
+          <CommentThread taskId={task.taskId} />
+        </div>
       </div>
 
       {isManager && (
