@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://mini-jira-alb-561216234.us-east-1.elb.amazonaws.com/api';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export const authAPI = {
   login: async (email, password) => {
