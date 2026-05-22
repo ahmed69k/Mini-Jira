@@ -112,6 +112,25 @@ const UserController = {
             console.log(e);
             return res.status(500).json({message: e.message})
         }
+    },
+    getTeamMembers: async(req,res)=>{
+        try{
+            const {teamId} = req.params;
+            if(!teamId) return res.status(409).json({message: "Team ID not provided."})
+            const command = new GetCommand({
+                TableName: table_name,
+                Key:{
+                    teamId: teamId
+                }
+            })
+            const result = await dynamodb.send(command);
+            return res.status(200).json({message: "Team members fetched successfully.", team_members: result.Item });
+        }
+        catch(e){
+            console.log(e);
+            return res.status(500).json({message: "Error fetching team members."})
+        }
+
     }
 }
 module.exports = UserController

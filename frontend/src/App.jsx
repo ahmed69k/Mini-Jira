@@ -28,6 +28,18 @@ function AppContent() {
     return isAuthenticated() ? children : <Navigate to="/login" />;
   };
 
+  //Role based auth
+  const AllowedRoles = ({ children, roles }) => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userRole = user?.role;
+
+    if (!roles.includes(userRole)) {
+      return <Navigate to="/tasks" />;
+    }
+
+    return children;
+  };
+
   return (
     <div className="app min-h-screen bg-slate-950">
       {!isAuthPage && isAuthenticated() && <Navbar />}
@@ -72,7 +84,9 @@ function AppContent() {
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <ManagerDashboard />
+                <AllowedRoles roles={["manager"]}>
+                  <ManagerDashboard></ManagerDashboard>
+                </AllowedRoles>
               </ProtectedRoute>
             }
           />
