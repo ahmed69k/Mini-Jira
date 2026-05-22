@@ -28,7 +28,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 border-b border-indigo-500/30 shadow-lg">
+    <nav className="sticky top-4 z-50 mx-4 mb-4 bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 border border-indigo-500/30 shadow-xl rounded-xl backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           

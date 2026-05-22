@@ -28,7 +28,7 @@ function AppContent() {
   };
 
   return (
-    <div className="app">
+    <div className="app min-h-screen bg-slate-950">
       {!isAuthPage && isAuthenticated() && <Navbar />}
 
       <main className={isAuthPage ? '' : ''}>
