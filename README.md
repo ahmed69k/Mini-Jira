@@ -4,6 +4,7 @@
 <p> Public Cloud Deployment Link: https://d33892jt6a8d5o.cloudfront.net </p>
 <p> Video Demo Drive Link: https://drive.google.com/file/d/1bMsE1h_9bYn0VN25FDBeYbXHOhB19erq/view?usp=sharing</p>
 <p> Architecture Diagram: </p>
+<img  height="512" alt="image" src="https://github.com/user-attachments/assets/65f5e5c9-590b-4feb-9ae2-b29c05384b72" />
 <h3> Team Members </h3>
 <ul>
   <li>Ahmed Assem - 13007108</li>
